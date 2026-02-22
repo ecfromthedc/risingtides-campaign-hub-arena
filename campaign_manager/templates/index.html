@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="topbar">
+  <h1>Promotions</h1>
+  <button class="btn btn-primary" onclick="document.getElementById('create-form').style.display = document.getElementById('create-form').style.display === 'none' ? 'block' : 'none'">+ New Campaign</button>
+</div>
+
+<!-- Create Campaign Form (hidden by default) -->
+<div id="create-form" class="card" style="display:none;">
+  <h3 style="margin-bottom:12px; font-size:16px; font-weight:600;">Create Campaign</h3>
+  <form method="post" action="{{ url_for('create_campaign') }}" style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">Title (Artist - Song Promo)</label>
+      <input name="title" placeholder='e.g. Fred Again "Lights Burn Dimmer" Promo' required style="width:300px;" />
+    </div>
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">Sound ID or URL</label>
+      <input name="official_sound" placeholder="Sound ID, sound URL, or video URL" required style="width:280px;" />
+    </div>
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">Start Date</label>
+      <input name="start_date" type="date" required style="width:160px;" />
+    </div>
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">Budget ($)</label>
+      <input name="budget" type="number" step="0.01" placeholder="1000" required style="width:130px;" />
+    </div>
+    <button type="submit" class="btn btn-primary">Create</button>
+  </form>
+</div>
+
+<!-- Search & Filter -->
+<div class="card" style="padding:14px 20px;">
+  <form method="get" class="search-bar">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search campaigns..." />
+    <button type="submit" class="btn">Search</button>
+    {% if search %}
+      <a href="{{ url_for('index') }}" class="btn btn-sm">Clear</a>
+    {% endif %}
+    <span class="text-muted" style="margin-left:auto;">{{ campaigns|length }} campaign{{ 's' if campaigns|length != 1 }}</span>
+  </form>
+</div>
+
+<!-- Campaign Table -->
+<div class="card" style="padding:0; overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Promotions</th>
+        <th>Artist</th>
+        <th>Status</th>
+        <th>Budget</th>
+        <th>Total Views</th>
+        <th>Live Posts</th>
+        <th>CPM</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if not campaigns %}
+        <tr><td colspan="7" class="text-muted" style="text-align:center; padding:40px;">No campaigns found. Create one above.</td></tr>
+      {% endif %}
+      {% for c in campaigns %}
+        <tr class="clickable" onclick="window.location='{{ url_for('campaign_detail', slug=c.slug) }}'">
+          <td>
+            <div style="font-weight:600;">{{ c.title }}</div>
+            <div class="text-muted">{{ c.meta.song or '' }}</div>
+          </td>
+          <td>{{ c.meta.artist or '-' }}</td>
+          <td><span class="badge badge-{{ c.meta.status or 'active' }}">{{ (c.meta.status or 'active')|capitalize }}</span></td>
+          <td style="min-width:200px;">
+            <div class="budget-text" style="font-weight:600;">USD ${{ '{:,.2f}'.format(c.budget.total) }}</div>
+            <div class="budget-bar mt-2">
+              <div class="budget-bar-fill" style="width:{{ c.budget.pct }}%;"></div>
+            </div>
+            <div class="text-muted mt-2">
+              Booked: ${{ '{:,.2f}'.format(c.budget.booked) }} ({{ c.budget.pct }}%) &middot;
+              Paid: ${{ '{:,.2f}'.format(c.budget.paid) }} &middot;
+              Left: ${{ '{:,.2f}'.format(c.budget.left) }}
+            </div>
+          </td>
+          <td>{{ '{:,}'.format(c.stats.total_views) if c.stats.total_views else '-' }}</td>
+          <td>{{ c.stats.live_posts }}</td>
+          <td>{{ '$%.2f'|format(c.stats.cpm) if c.stats.cpm else '-' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

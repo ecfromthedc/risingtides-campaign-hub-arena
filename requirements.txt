@@ -1,0 +1,31 @@
+# Python dependencies for Warner Tracker
+
+# Web UI
+Flask>=2.3.0
+gunicorn>=21.2.0
+
+# Database (Postgres on Railway)
+SQLAlchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Excel file generation
+openpyxl>=3.0.0
+
+# HTTP requests for album art fetching
+requests>=2.31.0
+
+# TikTok scraping
+yt-dlp>=2024.10.0
+
+# Instagram scraping
+instaloader>=4.10.0
+
+# Retry logic with backoff
+tenacity>=8.2.0
+
+# Progress bars
+tqdm>=4.66.0
+
+# Development tools (optional)
+# watchdog>=3.0.0  # For file watching (uncomment if needed)
+

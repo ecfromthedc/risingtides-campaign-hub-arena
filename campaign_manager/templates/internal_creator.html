@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('internal_page') }}">Internal TikTok</a> &rsaquo; @{{ username }}
+</div>
+
+<div class="topbar" style="margin-top:4px;">
+  <div>
+    <h1>@{{ username }}</h1>
+    <p class="text-muted">Last 30 days &middot; {{ total_videos }} posts ({{ total_videos_raw - total_videos }} original sounds filtered)</p>
+  </div>
+  <a href="https://www.tiktok.com/@{{ username }}" target="_blank" class="btn">View on TikTok</a>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Posts (30d)</div>
+    <div class="stat-value">{{ total_videos }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Views</div>
+    <div class="stat-value">{{ "{:,}".format(total_views) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Likes</div>
+    <div class="stat-value">{{ "{:,}".format(total_likes) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Unique Songs</div>
+    <div class="stat-value">{{ songs|length }}</div>
+  </div>
+</div>
+
+{% if songs %}
+  <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Top Songs by Views</h3>
+
+  {% for song in songs %}
+  <div class="card" style="margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div style="font-size:15px;font-weight:600;">{{ song.song }}</div>
+        <div class="text-muted">{{ song.artist }}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:18px;font-weight:700;">{{ "{:,}".format(song.total_views) }}</div>
+        <div class="text-muted">{{ song.videos|length }} post{{ 's' if song.videos|length != 1 else '' }} &middot; {{ "{:,}".format(song.total_likes) }} likes</div>
+      </div>
+    </div>
+
+    {% if song.videos|length <= 5 %}
+    <table style="margin-top:8px;">
+      <thead>
+        <tr>
+          <th style="padding:4px 10px;">Views</th>
+          <th style="padding:4px 10px;">Likes</th>
+          <th style="padding:4px 10px;">Date</th>
+          <th style="padding:4px 10px;">Link</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in song.videos %}
+        <tr>
+          <td style="padding:3px 10px;font-size:13px;">{{ "{:,}".format(v.views) }}</td>
+          <td style="padding:3px 10px;font-size:13px;">{{ "{:,}".format(v.likes) }}</td>
+          <td style="padding:3px 10px;font-size:13px;color:#888;">{{ v.upload_date[:4] + '-' + v.upload_date[4:6] + '-' + v.upload_date[6:] if v.upload_date and v.upload_date|length == 8 else v.upload_date or '—' }}</td>
+          <td style="padding:3px 10px;font-size:13px;"><a href="{{ v.url }}" target="_blank" style="color:#0b62d6;">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <details style="margin-top:8px;">
+      <summary style="cursor:pointer;font-size:13px;color:#0b62d6;font-weight:500;">Show {{ song.videos|length }} videos</summary>
+      <table style="margin-top:6px;">
+        <thead>
+          <tr>
+            <th style="padding:4px 10px;">Views</th>
+            <th style="padding:4px 10px;">Likes</th>
+            <th style="padding:4px 10px;">Date</th>
+            <th style="padding:4px 10px;">Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in song.videos %}
+          <tr>
+            <td style="padding:3px 10px;font-size:13px;">{{ "{:,}".format(v.views) }}</td>
+            <td style="padding:3px 10px;font-size:13px;">{{ "{:,}".format(v.likes) }}</td>
+            <td style="padding:3px 10px;font-size:13px;color:#888;">{{ v.upload_date[:4] + '-' + v.upload_date[4:6] + '-' + v.upload_date[6:] if v.upload_date and v.upload_date|length == 8 else v.upload_date or '—' }}</td>
+            <td style="padding:3px 10px;font-size:13px;"><a href="{{ v.url }}" target="_blank" style="color:#0b62d6;">Open</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+    {% endif %}
+
+    <!-- Copy links -->
+    <details style="margin-top:6px;">
+      <summary style="cursor:pointer;font-size:12px;color:#888;">Copy links</summary>
+      <div style="position:relative;margin-top:4px;">
+        <textarea readonly style="width:100%;height:{{ [50, song.videos|length * 20]|max }}px;max-height:150px;font-size:11px;font-family:monospace;padding:6px;border:1px solid #ddd;border-radius:6px;background:#f9f9fb;resize:vertical;" id="creator-links-{{ loop.index }}">{% for v in song.videos %}{{ v.url }}
+{% endfor %}</textarea>
+        <button type="button" class="btn btn-sm" style="position:absolute;top:4px;right:4px;font-size:11px;" onclick="copyEl('creator-links-{{ loop.index }}', this)">Copy</button>
+      </div>
+    </details>
+  </div>
+  {% endfor %}
+
+{% else %}
+  <div class="card">
+    <p style="color:#888;text-align:center;padding:40px 0;">No cached data for @{{ username }} yet.<br>Run a scrape from the Internal TikTok page to populate.</p>
+  </div>
+{% endif %}
+
+<script>
+function copyEl(id, btn) {
+  const el = document.getElementById(id);
+  el.select();
+  document.execCommand('copy');
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  }
+}
+</script>
+
+{% endblock %}

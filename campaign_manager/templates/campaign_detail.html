@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">Promotions</a> &gt; {{ title }}
+</div>
+
+<!-- Campaign Header -->
+<div class="card" style="background:#1a1a2e; color:#fff; border:none; margin-top:8px;">
+  <!-- Display Mode -->
+  <div id="header-display" class="flex justify-between items-center">
+    <div>
+      <h2 style="font-size:20px; font-weight:600; margin-bottom:4px;">{{ title }}</h2>
+      <div style="font-size:13px; opacity:0.7;">
+        {{ meta.artist or '' }} &middot; {{ meta.start_date or '' }}
+        {% set sound_count = 1 + (meta.get('additional_sounds', [])|length) if (meta.sound_id or meta.official_sound) else 0 %}
+        {% if sound_count %}
+          &middot; {{ sound_count }} sound{{ 's' if sound_count > 1 else '' }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div style="text-align:right;">
+        <div style="font-size:13px; opacity:0.7;">Budget: USD ${{ '{:,.2f}'.format(budget.total) }}</div>
+        <div style="width:160px; background:rgba(255,255,255,0.2); border-radius:999px; height:8px; margin-top:4px;">
+          <div style="width:{{ budget_pct }}%; background:#4f8ff7; height:8px; border-radius:999px;"></div>
+        </div>
+        <div style="font-size:12px; opacity:0.6; margin-top:4px;">
+          Booked: ${{ '{:,.2f}'.format(budget.booked) }} &middot;
+          Paid: ${{ '{:,.2f}'.format(budget.paid) }} &middot;
+          Left: ${{ '{:,.2f}'.format(budget.left) }}
+        </div>
+      </div>
+      <button class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.3);" onclick="document.getElementById('header-display').style.display='none'; document.getElementById('header-edit').style.display='block';">Edit</button>
+      <a href="{{ url_for('campaign_links', slug=slug) }}" class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.3); text-decoration:none;">View Links</a>
+      {% if meta.cobrand_link %}
+        <button type="button" class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.3);" onclick="var s=document.getElementById('cobrand-section');s.style.display=s.style.display==='none'?'block':'none';s.scrollIntoView({behavior:'smooth'});">Cobrand</button>
+      {% endif %}
+      <form method="post" action="{{ url_for('refresh_stats', slug=slug) }}" class="inline-form">
+        <button type="submit" class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.3);">Refresh Stats</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Mode -->
+  <div id="header-edit" style="display:none;">
+    <form method="post" action="{{ url_for('edit_campaign', slug=slug) }}">
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+        <div>
+          <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">Title</label>
+          <input name="title" value="{{ meta.title or meta.name or '' }}" style="width:280px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff;" />
+        </div>
+        <div>
+          <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">Sound ID or URL</label>
+          <div id="sounds-list">
+            <div style="display:flex; gap:6px; align-items:center; margin-bottom:4px;">
+              <input name="sound_id" value="{{ meta.sound_id or meta.official_sound or '' }}" style="width:240px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff;" />
+              <button type="button" onclick="addSoundRow()" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:8px; width:32px; height:36px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center;">+</button>
+            </div>
+            {% for s in meta.get('additional_sounds', []) %}
+            <div style="display:flex; gap:6px; align-items:center; margin-bottom:4px;">
+              <input name="additional_sound" value="{{ s }}" style="width:240px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff;" />
+              <button type="button" onclick="this.parentElement.remove()" style="background:rgba(255,60,60,0.3); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:8px; width:32px; height:36px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;">&times;</button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">Start Date</label>
+          <input name="start_date" type="date" value="{{ meta.start_date or '' }}" style="width:150px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff;" />
+        </div>
+        <div>
+          <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">Budget ($)</label>
+          <input name="budget" type="number" step="0.01" value="{{ meta.budget or 0 }}" style="width:120px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff;" />
+        </div>
+        <div>
+          <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">Cobrand Link</label>
+          <input name="cobrand_link" value="{{ meta.cobrand_link or '' }}" placeholder="https://music.cobrand.com/promote/..." style="width:340px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff;" />
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.3);" onclick="document.getElementById('header-edit').style.display='none'; document.getElementById('header-display').style.display='flex';">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Budget Used</div>
+    <div class="stat-value">${{ '{:,.0f}'.format(budget.booked) }}</div>
+    <div class="text-muted">{{ budget_pct }}% of ${{ '{:,.0f}'.format(budget.total) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Paid Out</div>
+    <div class="stat-value">${{ '{:,.0f}'.format(budget.paid) }}</div>
+    <div class="text-muted">${{ '{:,.0f}'.format(budget.left) }} remaining</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Live Posts</div>
+    <div class="stat-value">{{ stats.live_posts }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Views</div>
+    <div class="stat-value">{{ '{:,}'.format(stats.total_views) if stats.total_views else '-' }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">CPM</div>
+    <div class="stat-value">{{ '$%.2f'|format(stats.cpm) if stats.cpm else '-' }}</div>
+  </div>
+</div>
+
+<!-- Add Creator -->
+<div class="card">
+  <h3 style="font-size:15px; font-weight:600; margin-bottom:12px;">Add Creator</h3>
+  <form method="post" action="{{ url_for('add_creator', slug=slug) }}" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">Username</label>
+      <input name="username" id="add-username" placeholder="@username" required style="width:160px;" />
+    </div>
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">Posts Owed</label>
+      <input name="posts_owed" type="number" min="1" value="5" required style="width:90px;" />
+    </div>
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">Price ($)</label>
+      <input name="total_rate" type="number" step="0.01" value="100" required style="width:110px;" />
+    </div>
+    <div>
+      <label class="text-muted" style="display:block; margin-bottom:4px;">PayPal</label>
+      <input name="paypal_email" id="add-paypal" type="email" placeholder="email@example.com" style="width:200px;" />
+    </div>
+    <input type="hidden" name="platform" value="tiktok" />
+    <button type="submit" class="btn btn-primary">Add</button>
+  </form>
+</div>
+
+<!-- Creators Table -->
+<div class="card" style="padding:0; overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Creator</th>
+        <th>Posts</th>
+        <th>Price</th>
+        <th>PayPal</th>
+        <th>Notes</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if not active_creators %}
+        <tr><td colspan="6" class="text-muted" style="text-align:center; padding:40px;">No creators yet. Add one above.</td></tr>
+      {% endif %}
+      {% for c in active_creators %}
+        <tr id="row-{{ c.username }}">
+          <td>
+            <a href="https://www.tiktok.com/@{{ c.username }}" target="_blank" style="font-weight:600; color:#0b62d6;" class="d-{{ c.username }}">@{{ c.username }}</a>
+            <input name="new_username" value="{{ c.username }}" class="e-{{ c.username }}" style="display:none; width:130px; font-weight:600;" form="form-{{ c.username }}" />
+          </td>
+          <!-- Display mode -->
+          <td class="d-{{ c.username }}">
+            <span style="font-weight:600;">{{ c.posts_done }} / {{ c.posts_owed }}</span>
+          </td>
+          <td class="d-{{ c.username }}">
+            <span>${{ '%.2f'|format(c.total_rate) }}</span>
+          </td>
+          <td class="d-{{ c.username }}">
+            <div class="flex items-center gap-2">
+              <span style="font-size:13px;">{{ c.paypal_email or '—' }}</span>
+              <label class="paid-check" style="cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap; font-size:12px; user-select:none;">
+                <input type="checkbox" class="paid-toggle" data-url="{{ url_for('toggle_paid', slug=slug, username=c.username) }}" {{ 'checked' if c.paid|lower == 'yes' }} style="width:16px; height:16px; accent-color:#22c55e; cursor:pointer;" />
+                <span class="paid-label" style="color:{{ '#22c55e' if c.paid|lower == 'yes' else '#999' }}; font-weight:{{ '600' if c.paid|lower == 'yes' else '400' }};">{{ 'Paid' if c.paid|lower == 'yes' else 'Unpaid' }}</span>
+              </label>
+            </div>
+          </td>
+          <td class="d-{{ c.username }}">
+            <span style="font-size:12px; color:#666;">{{ c.notes or '' }}</span>
+          </td>
+          <!-- Edit mode (hidden by default) -->
+          <td class="e-{{ c.username }}" style="display:none;">
+            <form method="post" action="{{ url_for('edit_creator', slug=slug, username=c.username) }}" class="flex items-center gap-2" id="form-{{ c.username }}">
+              <span style="font-weight:600;">{{ c.posts_done }}/</span><input name="posts_owed" type="number" min="0" value="{{ c.posts_owed }}" style="width:65px;" />
+          </td>
+          <td class="e-{{ c.username }}" style="display:none;">
+              <input name="total_rate" type="number" step="0.01" min="0" value="{{ '%.2f'|format(c.total_rate) }}" style="width:90px;" />
+          </td>
+          <td class="e-{{ c.username }}" style="display:none;">
+              <div class="flex items-center gap-2">
+                <input name="paypal_email" type="email" value="{{ c.paypal_email }}" placeholder="paypal" style="width:180px;" />
+                <label class="paid-check" style="cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap; font-size:12px; user-select:none;">
+                  <input type="checkbox" class="paid-toggle" data-url="{{ url_for('toggle_paid', slug=slug, username=c.username) }}" {{ 'checked' if c.paid|lower == 'yes' }} style="width:16px; height:16px; accent-color:#22c55e; cursor:pointer;" />
+                  <span class="paid-label" style="color:{{ '#22c55e' if c.paid|lower == 'yes' else '#999' }}; font-weight:{{ '600' if c.paid|lower == 'yes' else '400' }};">{{ 'Paid' if c.paid|lower == 'yes' else 'Unpaid' }}</span>
+                </label>
+              </div>
+          </td>
+          <td class="e-{{ c.username }}" style="display:none;">
+              <input name="notes" value="{{ c.notes or '' }}" placeholder="add note..." style="width:150px; font-size:12px;" />
+              <button type="submit" class="btn btn-sm">Save</button>
+              <button type="button" class="btn btn-sm" onclick="toggleEdit('{{ c.username }}', false)">Cancel</button>
+            </form>
+          </td>
+          <td>
+            <div class="flex items-center gap-2">
+              <button type="button" class="btn btn-sm d-{{ c.username }}" onclick="toggleEdit('{{ c.username }}', true)">Edit</button>
+              <form method="post" action="{{ url_for('remove_creator', slug=slug, username=c.username) }}" class="inline-form" onsubmit="return confirm('Remove @{{ c.username }}?')">
+                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Cobrand Upload Section -->
+{% if meta.cobrand_link %}
+<div class="card" id="cobrand-section" style="display:none;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <h3 style="font-size:15px; font-weight:600;">Cobrand Upload</h3>
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-sm" onclick="copyCobrandLinks(this)">Copy All Links</button>
+      <a href="{{ meta.cobrand_link }}" target="_blank" class="btn btn-sm btn-primary" style="text-decoration:none;">Open in New Tab</a>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;">
+    <div>
+      <div id="cobrand-iframe-wrap">
+        <iframe id="cobrand-iframe" src="{{ meta.cobrand_link }}" style="width:100%; height:500px; border:1px solid #ddd; border-radius:8px; background:#f9f9fb;"></iframe>
+      </div>
+      <div id="cobrand-iframe-fallback" style="display:none; padding:40px; text-align:center; border:1px dashed #ddd; border-radius:8px; background:#f9f9fb;">
+        <p style="color:#888; margin-bottom:12px;">Cobrand cannot be embedded in an iframe.</p>
+        <a href="{{ meta.cobrand_link }}" target="_blank" class="btn btn-primary" style="text-decoration:none;">Open Cobrand Upload Page</a>
+      </div>
+    </div>
+    <div>
+      <label style="font-size:13px; font-weight:500; display:block; margin-bottom:6px;">Matched Video Links ({{ matched_videos|length }})</label>
+      <textarea id="cobrand-links" readonly style="width:100%; height:460px; font-family:monospace; font-size:12px; border:1px solid #ddd; border-radius:8px; padding:10px; background:#f9f9fb; resize:vertical; line-height:1.8;">{% for v in matched_videos %}{{ v.url }}
+{% endfor %}</textarea>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+// Cobrand helpers
+function copyCobrandLinks(btn) {
+  var el = document.getElementById('cobrand-links');
+  el.select();
+  document.execCommand('copy');
+  if (btn) { var orig = btn.textContent; btn.textContent = 'Copied!'; setTimeout(function(){ btn.textContent = orig; }, 1500); }
+}
+
+// Detect if cobrand iframe is blocked
+(function(){
+  var iframe = document.getElementById('cobrand-iframe');
+  if (!iframe) return;
+  var timer = setTimeout(function(){
+    // If iframe content is inaccessible after 5s, show fallback
+    try {
+      var doc = iframe.contentDocument || iframe.contentWindow.document;
+      if (!doc || !doc.body || doc.body.innerHTML === '') throw 'blocked';
+    } catch(e) {
+      document.getElementById('cobrand-iframe-wrap').style.display = 'none';
+      document.getElementById('cobrand-iframe-fallback').style.display = 'block';
+    }
+  }, 5000);
+  iframe.addEventListener('load', function(){ clearTimeout(timer); });
+})();
+
+// Toggle edit mode for a creator row
+function toggleEdit(username, show) {
+  var esc = CSS.escape(username);
+  document.querySelectorAll('.d-' + esc).forEach(function(el) { el.style.display = show ? 'none' : ''; });
+  document.querySelectorAll('.e-' + esc).forEach(function(el) { el.style.display = show ? '' : 'none'; });
+}
+
+// Add sound row
+function addSoundRow(){
+  var list=document.getElementById('sounds-list');
+  var row=document.createElement('div');
+  row.style.cssText='display:flex; gap:6px; align-items:center; margin-bottom:4px;';
+  row.innerHTML='<input name="additional_sound" value="" style="width:240px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); color:#fff;" placeholder="Sound URL or ID" />'
+    +'<button type="button" onclick="this.parentElement.remove()" style="background:rgba(255,60,60,0.3); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:8px; width:32px; height:36px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;">&times;</button>';
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+// PayPal auto-fill
+(function(){
+  var u=document.getElementById('add-username'), p=document.getElementById('add-paypal'), timer;
+  if(!u||!p) return;
+  u.addEventListener('blur', lookup);
+  u.addEventListener('input', function(){ clearTimeout(timer); timer=setTimeout(lookup, 400); });
+  function lookup(){
+    var name=u.value.replace(/^@/,'').trim();
+    if(!name||p.value.trim()) return;
+    fetch('/api/paypal/'+encodeURIComponent(name))
+      .then(function(r){return r.json()})
+      .then(function(d){ if(d.paypal && !p.value.trim()) p.value=d.paypal; });
+  }
+})();
+
+// Paid checkbox toggle
+document.querySelectorAll('.paid-toggle').forEach(function(cb){
+  cb.addEventListener('change', function(e){
+    e.preventDefault();
+    var url=cb.dataset.url;
+    var label=cb.parentElement.querySelector('.paid-label');
+    fetch(url, {method:'POST', headers:{'X-Requested-With':'fetch'}})
+      .then(function(r){return r.json()})
+      .then(function(d){
+        var paid = d.paid === 'yes';
+        cb.checked = paid;
+        label.textContent = paid ? 'Paid' : 'Unpaid';
+        label.style.color = paid ? '#22c55e' : '#999';
+        label.style.fontWeight = paid ? '600' : '400';
+      });
+  });
+});
+</script>
+{% endblock %}

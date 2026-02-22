@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">Promotions</a> &gt;
+  <a href="{{ url_for('campaign_detail', slug=slug) }}">{{ title }}</a> &gt; Links
+</div>
+
+<!-- Header -->
+<div class="card" style="background:#1a1a2e; color:#fff; border:none; margin-top:8px;">
+  <div class="flex justify-between items-center">
+    <div>
+      <h2 style="font-size:20px; font-weight:600; margin-bottom:4px;">{{ title }} - Matched Videos</h2>
+      <div style="font-size:13px; opacity:0.7;">
+        Sound: {{ meta.sound_id or meta.official_sound or 'N/A' }}
+        {% if scrape_log.last_scrape %}
+          &middot; Last scraped: {{ scrape_log.last_scrape[:16] | replace('T', ' ') }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span style="font-size:14px; opacity:0.8;">{{ videos|length }} video{{ 's' if videos|length != 1 }}</span>
+      <a href="{{ url_for('campaign_detail', slug=slug) }}" class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.3);">Back to Creators</a>
+    </div>
+  </div>
+</div>
+
+<!-- Stats summary -->
+{% set total_views = videos | map(attribute='views') | map('int') | sum %}
+{% set total_likes = videos | map(attribute='likes') | map('int') | sum %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Matched Videos</div>
+    <div class="stat-value">{{ videos|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Views</div>
+    <div class="stat-value">{{ '{:,}'.format(total_views) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Likes</div>
+    <div class="stat-value">{{ '{:,}'.format(total_likes) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg Views/Video</div>
+    <div class="stat-value">{{ '{:,.0f}'.format(total_views / videos|length) if videos|length > 0 else '-' }}</div>
+  </div>
+</div>
+
+<!-- Copy-paste links -->
+<div class="card">
+  <div class="flex justify-between items-center" style="margin-bottom:12px;">
+    <h3 style="font-size:15px; font-weight:600;">Links</h3>
+    {% if videos %}
+      <button class="btn btn-sm" onclick="var t=document.getElementById('links-text');t.select();document.execCommand('copy');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy All',1500);">Copy All</button>
+    {% endif %}
+  </div>
+  {% if not videos %}
+    <p class="text-muted">No matched videos yet. Hit "Refresh Stats" on the campaign page to scrape.</p>
+  {% else %}
+    <textarea id="links-text" readonly style="width:100%; height:{{ [videos|length * 28, 400] | min }}px; font-family:monospace; font-size:13px; border:1px solid #e0e0e0; border-radius:8px; padding:12px; background:#f9f9fb; resize:vertical; line-height:1.8;">{% for v in videos %}{{ v.url }}
+{% endfor %}</textarea>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="topbar">
+  <div>
+    <h1>Internal TikTok</h1>
+    <p class="text-muted">Scrape internal creator accounts and see all sounds used</p>
+  </div>
+  <form method="POST" action="{{ url_for('internal_scrape') }}" style="display:flex;align-items:center;gap:10px;" id="scrape-form">
+    <label style="font-size:13px;color:#666;">Last</label>
+    <input type="number" name="hours" value="{{ results.get('hours', 48) if results else 48 }}" min="1" max="720" style="width:70px;text-align:center;">
+    <label style="font-size:13px;color:#666;">hours</label>
+    <button type="submit" class="btn btn-primary" id="scrape-btn" {% if scrape_status and scrape_status.running %}disabled{% endif %}>
+      {% if scrape_status and scrape_status.running %}Scraping...{% else %}Run Scrape{% endif %}
+    </button>
+  </form>
+</div>
+
+<!-- Scrape progress bar (shown when scraping) -->
+<div id="scrape-progress" style="display:{% if scrape_status and scrape_status.running %}block{% else %}none{% endif %};margin-bottom:16px;">
+  <div class="card" style="padding:12px 16px;border-left:3px solid #0b62d6;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:16px;height:16px;border:2px solid #0b62d6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;" id="spinner"></div>
+      <span id="progress-text" style="font-size:14px;color:#333;">{{ scrape_status.progress if scrape_status else 'Starting...' }}</span>
+    </div>
+  </div>
+</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+<!-- Stat cards -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Accounts</div>
+    <div class="stat-value">{{ creators|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Last Scrape</div>
+    <div class="stat-value" style="font-size:16px;">
+      {% if results and results.scraped_at %}
+        {{ results.scraped_at[:16].replace('T', ' ') }}
+      {% else %}
+        Never
+      {% endif %}
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Videos Found</div>
+    <div class="stat-value">{{ results.get('total_videos', 0) if results else 0 }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Unique Songs</div>
+    <div class="stat-value">{{ results.get('unique_songs', 0) if results else 0 }}</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start;">
+
+  <!-- Creator list (left panel) -->
+  <div class="card" style="position:sticky;top:24px;">
+    <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Internal Creators ({{ creators|length }})</h3>
+
+    <form method="POST" action="{{ url_for('internal_add_creator') }}" style="margin-bottom:12px;">
+      <div style="display:flex;gap:6px;">
+        <input type="text" name="username" placeholder="@username" style="flex:1;font-size:13px;padding:6px 10px;">
+        <button type="submit" class="btn btn-sm btn-primary">Add</button>
+      </div>
+      <p style="font-size:11px;color:#999;margin-top:4px;">Comma or newline separated for bulk add</p>
+    </form>
+
+    <div style="max-height:600px;overflow-y:auto;">
+      {% for creator in creators|sort %}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f5;">
+        <a href="{{ url_for('internal_creator_detail', username=creator) }}" style="color:#0b62d6;text-decoration:none;font-size:13px;flex:1;">
+          @{{ creator }}
+          {% if creator_stats.get(creator, {}).get('total_videos', 0) > 0 %}
+            <span style="color:#888;font-size:11px;margin-left:4px;">{{ creator_stats[creator].total_videos }} posts &middot; {{ "{:,}".format(creator_stats[creator].total_views) }}v</span>
+          {% endif %}
+        </a>
+        <form method="POST" action="{{ url_for('internal_remove_creator', username=creator) }}" style="display:inline;margin:0;">
+          <button type="submit" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;padding:2px 6px;" title="Remove">&times;</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Results (right panel) -->
+  <div>
+    {% if results and results.get('songs') %}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="font-size:15px;font-weight:600;">
+          Songs Found ({{ results.songs|length }})
+          <span class="text-muted" style="font-weight:400;"> &mdash; {{ results.get('hours', 48) }}h window</span>
+          {% if results.get('total_videos_unfiltered') and results.total_videos_unfiltered != results.total_videos %}
+            <span class="text-muted" style="font-weight:400;font-size:12px;"> ({{ results.total_videos_unfiltered - results.total_videos }} original sounds filtered)</span>
+          {% endif %}
+        </h3>
+      </div>
+
+      {% for song in results.songs %}
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-size:16px;font-weight:600;">{{ song.song }}</div>
+            <div class="text-muted">{{ song.artist }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:18px;font-weight:700;">{{ "{:,}".format(song.total_views) }}</div>
+            <div class="text-muted">{{ song.videos|length }} video{{ 's' if song.videos|length != 1 else '' }}</div>
+          </div>
+        </div>
+
+        <div style="margin-top:8px;font-size:12px;color:#888;">
+          Accounts: {{ song.accounts|join(', ') }}
+        </div>
+
+        <!-- Video table -->
+        <table style="margin-top:10px;">
+          <thead>
+            <tr>
+              <th style="padding:6px 10px;">Account</th>
+              <th style="padding:6px 10px;">Views</th>
+              <th style="padding:6px 10px;">Likes</th>
+              <th style="padding:6px 10px;">Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in song.videos %}
+            <tr>
+              <td style="padding:4px 10px;font-size:13px;">
+                <a href="{{ url_for('internal_creator_detail', username=v.account.lstrip('@')) }}" style="color:#0b62d6;text-decoration:none;">{{ v.account }}</a>
+              </td>
+              <td style="padding:4px 10px;font-size:13px;">{{ "{:,}".format(v.views) }}</td>
+              <td style="padding:4px 10px;font-size:13px;">{{ "{:,}".format(v.likes) }}</td>
+              <td style="padding:4px 10px;font-size:13px;"><a href="{{ v.url }}" target="_blank" style="color:#0b62d6;">Open</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <!-- Copy-paste links -->
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer;font-size:13px;color:#0b62d6;font-weight:500;">Copy links ({{ song.videos|length }})</summary>
+          <div style="position:relative;margin-top:6px;">
+            <textarea readonly style="width:100%;height:{{ [60, song.videos|length * 22]|max }}px;max-height:200px;font-size:12px;font-family:monospace;padding:8px;border:1px solid #ddd;border-radius:6px;background:#f9f9fb;resize:vertical;" id="links-{{ loop.index }}">{% for v in song.videos %}{{ v.url }}
+{% endfor %}</textarea>
+            <button type="button" class="btn btn-sm" style="position:absolute;top:6px;right:6px;font-size:11px;" onclick="copyLinks({{ loop.index }})">Copy</button>
+          </div>
+        </details>
+      </div>
+      {% endfor %}
+
+      <!-- Master copy-paste: ALL links grouped by song -->
+      <div class="card" style="margin-top:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h3 style="font-size:15px;font-weight:600;">All Links (Copy/Paste)</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="copyLinks('all')">Copy All</button>
+        </div>
+        <textarea readonly id="links-all" style="width:100%;height:300px;font-size:12px;font-family:monospace;padding:10px;border:1px solid #ddd;border-radius:6px;background:#f9f9fb;resize:vertical;">{% for song in results.songs %}{{ song.song }} - {{ song.artist }}
+{{ '=' * 60 }}
+{% for v in song.videos %}{{ v.url }}
+{% endfor %}
+{% endfor %}</textarea>
+      </div>
+
+    {% elif results and results.get('scraped_at') %}
+      <div class="card">
+        <p style="color:#888;text-align:center;padding:40px 0;">No videos found in the last {{ results.get('hours', 48) }} hours.<br>Try increasing the time window.</p>
+      </div>
+    {% else %}
+      <div class="card">
+        <p style="color:#888;text-align:center;padding:40px 0;">Click <strong>Run Scrape</strong> to scan internal creator accounts.<br>Results will appear here grouped by song.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function copyLinks(id) {
+  const el = document.getElementById('links-' + id);
+  el.select();
+  document.execCommand('copy');
+  const btn = el.parentElement.querySelector('button') || el.closest('.card').querySelector('button[onclick]');
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  }
+}
+
+// Poll scrape status when running
+(function() {
+  const progress = document.getElementById('scrape-progress');
+  const progressText = document.getElementById('progress-text');
+  const btn = document.getElementById('scrape-btn');
+  const spinner = document.getElementById('spinner');
+
+  {% if scrape_status and scrape_status.running %}
+  let polling = true;
+  {% else %}
+  let polling = false;
+  {% endif %}
+
+  // Also start polling after form submit
+  document.getElementById('scrape-form').addEventListener('submit', function() {
+    polling = true;
+    progress.style.display = 'block';
+    progressText.textContent = 'Starting...';
+    btn.disabled = true;
+    btn.textContent = 'Scraping...';
+    poll();
+  });
+
+  function poll() {
+    if (!polling) return;
+    fetch('/internal/scrape/status')
+      .then(r => r.json())
+      .then(data => {
+        progressText.textContent = data.progress || 'Working...';
+        if (data.running) {
+          setTimeout(poll, 2000);
+        } else if (data.done) {
+          // Scrape finished — reload the page to show results
+          window.location.reload();
+        }
+      })
+      .catch(() => setTimeout(poll, 3000));
+  }
+
+  if (polling) poll();
+})();
+</script>
+
+{% endblock %}

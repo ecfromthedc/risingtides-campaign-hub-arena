@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output files (generated reports)
+output/*.html
+*.xlsx
+*.log
+
+# Data directory
+data/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Output directory contains generated reports
+output/
+
+# Cache directory contains scraped data
+cache/
+*.pkl
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Runtime data (created by app)
+campaign_manager/campaigns/
+campaign_manager/internal_cache/
+campaign_manager/internal_creators.json
+campaign_manager/internal_last_scrape.json

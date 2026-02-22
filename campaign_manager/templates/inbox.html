@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="flex justify-between items-center" style="margin-bottom:16px;">
+  <h1 style="font-size:22px; font-weight:600;">Slack Inbox</h1>
+  <div style="font-size:13px; color:#888;">
+    {{ inbox|selectattr('status', 'equalto', 'pending')|list|length }} pending
+  </div>
+</div>
+
+{% set pending = inbox|selectattr('status', 'equalto', 'pending')|list %}
+{% set approved = inbox|selectattr('status', 'equalto', 'approved')|list %}
+{% set dismissed = inbox|selectattr('status', 'equalto', 'dismissed')|list %}
+
+{% if not pending and not approved and not dismissed %}
+<div class="card" style="text-align:center; padding:60px 20px;">
+  <div style="font-size:48px; margin-bottom:12px; opacity:0.3;">&#x1f4ec;</div>
+  <div style="font-size:15px; color:#888;">No inbox items yet.</div>
+  <div style="font-size:13px; color:#aaa; margin-top:8px;">
+    When Open CLAW parses a booking from Slack, it'll appear here for your approval.
+  </div>
+  <div style="margin-top:20px; font-size:12px; color:#bbb; background:#f7f7f9; padding:16px; border-radius:8px; text-align:left; max-width:500px; margin-left:auto; margin-right:auto;">
+    <div style="font-weight:600; margin-bottom:8px; color:#888;">API Endpoint</div>
+    <code>POST /api/inbox</code>
+    <pre style="margin-top:8px; font-size:11px; white-space:pre-wrap;">{
+  "source": "slack",
+  "raw_message": "Book @xyzbca_quote for 5 posts at $150 on sombr",
+  "campaign_name": "Sombr Homewrecker Promo R3",
+  "campaign_slug": "sombr_homewrecker_promo_r3",
+  "creators": [
+    {"username": "xyzbca_quote", "posts_owed": 5, "total_rate": 150}
+  ]
+}</pre>
+  </div>
+</div>
+{% endif %}
+
+{% if pending %}
+<div style="margin-bottom:24px;">
+  <div style="font-size:13px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:8px;">Pending Approval</div>
+  {% for item in pending %}
+  <div class="card" style="margin-bottom:12px; border-left:4px solid #4f8ff7;" id="inbox-{{ item.id }}">
+    <div class="flex justify-between items-center" style="margin-bottom:8px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label style="font-size:13px; color:#888; font-weight:500;">Campaign:</label>
+        <select class="inbox-campaign-select" data-item-id="{{ item.id }}" style="font-size:13px; padding:4px 8px; border-radius:6px; border:1px solid #ddd; min-width:220px;">
+          <option value="">-- Select Campaign --</option>
+          {% for c in campaigns %}
+            <option value="{{ c.slug }}" {% if item.campaign_slug == c.slug %}selected{% endif %}>
+              {{ c.meta.title or c.meta.name or c.slug }}
+            </option>
+          {% endfor %}
+        </select>
+        {% if item.campaign_suggested %}
+          <span style="font-size:11px; color:#f59e0b; background:#fef3c7; padding:2px 8px; border-radius:4px;">Suggested</span>
+        {% endif %}
+        <span style="font-size:12px; color:#888;">from {{ item.source or 'slack' }}</span>
+      </div>
+      <div style="font-size:12px; color:#aaa;">{{ item.created_at[:16] }}</div>
+    </div>
+
+    {% if item.raw_message %}
+    <div style="font-size:13px; color:#666; background:#f7f7f9; padding:8px 12px; border-radius:6px; margin-bottom:8px;">
+      {{ item.raw_message }}
+    </div>
+    {% endif %}
+
+    {% if item.creators %}
+    <table style="margin-bottom:8px;">
+      <thead>
+        <tr>
+          <th style="padding:4px 12px;">Creator</th>
+          <th style="padding:4px 12px;">Posts</th>
+          <th style="padding:4px 12px;">Rate</th>
+          <th style="padding:4px 12px;">PayPal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cr in item.creators %}
+        <tr>
+          <td style="padding:4px 12px;"><input class="inbox-cr-username" value="{{ cr.username }}" style="width:130px; font-weight:600; font-size:13px;" /></td>
+          <td style="padding:4px 12px;"><input class="inbox-cr-posts" type="number" min="0" value="{{ cr.posts_owed or 0 }}" style="width:60px; font-size:13px;" /></td>
+          <td style="padding:4px 12px;"><input class="inbox-cr-rate" type="number" step="0.01" min="0" value="{{ cr.total_rate or 0 }}" style="width:80px; font-size:13px;" /></td>
+          <td style="padding:4px 12px;"><input class="inbox-cr-paypal" value="{{ cr.paypal_email or '' }}" placeholder="paypal" style="width:160px; font-size:13px;" /></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-primary inbox-approve-btn" data-item-id="{{ item.id }}" style="font-size:13px;">Approve & Add</button>
+      <button type="button" class="btn btn-sm inbox-dismiss-btn" data-item-id="{{ item.id }}" style="font-size:13px;">Dismiss</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if approved %}
+<div style="margin-bottom:24px;">
+  <div style="font-size:13px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:8px;">Recently Approved</div>
+  {% for item in approved[:10] %}
+  <div class="card" style="margin-bottom:8px; opacity:0.7; border-left:4px solid #22c55e;">
+    <div class="flex justify-between items-center">
+      <div>
+        <span style="font-weight:600;">{{ item.campaign_name or item.campaign_slug }}</span>
+        <span style="font-size:12px; color:#22c55e; margin-left:8px;">Approved</span>
+        {% if item.creators_added %}
+        <span style="font-size:12px; color:#888; margin-left:4px;">— added {{ item.creators_added|length }} creator(s)</span>
+        {% endif %}
+      </div>
+      <div style="font-size:12px; color:#aaa;">{{ (item.approved_at or item.created_at)[:16] }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if dismissed %}
+<div>
+  <div style="font-size:13px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:8px;">Dismissed</div>
+  {% for item in dismissed[:5] %}
+  <div class="card" style="margin-bottom:8px; opacity:0.4;">
+    <div class="flex justify-between items-center">
+      <span>{{ item.campaign_name or item.campaign_slug or 'Unknown' }}</span>
+      <span style="font-size:12px; color:#aaa;">{{ (item.dismissed_at or item.created_at)[:16] }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+// Collect creator data from editable table rows
+function getCreatorsFromCard(card) {
+  var rows = card.querySelectorAll('tbody tr');
+  var creators = [];
+  rows.forEach(function(row) {
+    var username = row.querySelector('.inbox-cr-username');
+    var posts = row.querySelector('.inbox-cr-posts');
+    var rate = row.querySelector('.inbox-cr-rate');
+    var paypal = row.querySelector('.inbox-cr-paypal');
+    if (username && username.value.trim()) {
+      creators.push({
+        username: username.value.trim().replace(/^@/, ''),
+        posts_owed: parseInt(posts.value) || 0,
+        total_rate: parseFloat(rate.value) || 0,
+        paypal_email: paypal ? paypal.value.trim() : ''
+      });
+    }
+  });
+  return creators;
+}
+
+// Approve with editable data
+document.querySelectorAll('.inbox-approve-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var itemId = btn.dataset.itemId;
+    var card = document.getElementById('inbox-' + itemId);
+    var select = card.querySelector('.inbox-campaign-select');
+    var slug = select ? select.value : '';
+
+    if (!slug) {
+      alert('Please select a campaign first.');
+      select.focus();
+      return;
+    }
+
+    var creators = getCreatorsFromCard(card);
+    var body = { campaign_slug: slug, creators: creators };
+
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+    fetch('/api/inbox/' + itemId + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) location.reload();
+      else { alert(d.error || 'Something went wrong'); btn.disabled = false; btn.textContent = 'Approve & Add'; }
+    });
+  });
+});
+
+// Dismiss
+document.querySelectorAll('.inbox-dismiss-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var itemId = btn.dataset.itemId;
+    fetch('/api/inbox/' + itemId + '/dismiss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) location.reload();
+      else alert(d.error || 'Something went wrong');
+    });
+  });
+});
+</script>
+
+{% endblock %}

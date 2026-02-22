@@ -1,0 +1,270 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page_title or 'Campaign Dashboard' }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f7f7f9;
+      color: #1a1a2e;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #fff;
+      border-right: 1px solid #e8e8ef;
+      padding: 24px 0;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+    }
+    .sidebar-logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a2e;
+      padding: 0 24px 24px;
+      border-bottom: 1px solid #e8e8ef;
+    }
+    .sidebar-section {
+      padding: 16px 0 4px 24px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #999;
+      letter-spacing: 0.5px;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      color: #555;
+      text-decoration: none;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .sidebar a:hover { background: #f0f0f5; }
+    .sidebar a.active {
+      background: #eef2ff;
+      color: #0b62d6;
+      font-weight: 600;
+      border-left: 3px solid #0b62d6;
+      padding-left: 21px;
+    }
+
+    /* Main content */
+    .main {
+      margin-left: 220px;
+      flex: 1;
+      padding: 24px 32px;
+      min-width: 0;
+    }
+
+    /* Top bar */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .topbar h1 {
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .breadcrumb {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .breadcrumb a { color: #0b62d6; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+
+    /* Cards */
+    .card {
+      background: #fff;
+      border: 1px solid #e8e8ef;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      border-bottom: 2px solid #e8e8ef;
+    }
+    td {
+      padding: 6px 16px;
+      border-bottom: 1px solid #f0f0f5;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+    tr:hover td { background: #fafaff; }
+    tr.clickable { cursor: pointer; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #333;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: #f5f5f5; border-color: #ccc; }
+    .btn-primary {
+      background: #0b62d6;
+      color: #fff;
+      border-color: #0b62d6;
+    }
+    .btn-primary:hover { background: #0951b5; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger { color: #dc2626; border-color: #fecaca; }
+    .btn-danger:hover { background: #fef2f2; }
+
+    /* Forms */
+    input, select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #0b62d6;
+      box-shadow: 0 0 0 3px rgba(11, 98, 214, 0.1);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-active { background: #eef2ff; color: #0b62d6; }
+    .badge-completed { background: #f0fdf4; color: #16a34a; }
+    .badge-paid { background: #f0fdf4; color: #16a34a; }
+    .badge-unpaid { background: #fef2f2; color: #dc2626; }
+
+    /* Budget bars */
+    .budget-bar {
+      width: 100%;
+      background: #e8e8ef;
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .budget-bar-fill {
+      height: 8px;
+      border-radius: 999px;
+      background: #0b62d6;
+      transition: width 0.3s;
+    }
+    .budget-text {
+      font-size: 13px;
+      color: #666;
+    }
+
+    /* Stat cards */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #e8e8ef;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .stat-label { font-size: 12px; color: #888; font-weight: 500; }
+    .stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+
+    /* Flash messages */
+    .flash {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .flash-ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+    .flash-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+
+    /* Search */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .search-bar input[type="text"] {
+      width: 300px;
+    }
+
+    /* Utilities */
+    .text-right { text-align: right; }
+    .text-muted { color: #888; font-size: 13px; }
+    .mt-2 { margin-top: 8px; }
+    .mb-3 { margin-bottom: 16px; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .inline-form { display: inline; }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">Campaign Tracker</div>
+  <div class="sidebar-section">Campaigns</div>
+  <a href="{{ url_for('index') }}" class="{{ 'active' if active_nav == 'campaigns' else '' }}">Promotions</a>
+  <div class="sidebar-section">Internal</div>
+  <a href="{{ url_for('internal_page') }}" class="{{ 'active' if active_nav == 'internal' else '' }}">Internal TikTok</a>
+  <div class="sidebar-section">Intake</div>
+  <a href="{{ url_for('inbox_page') }}" class="{{ 'active' if active_nav == 'inbox' else '' }}">Slack Inbox</a>
+</nav>
+
+<div class="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash {{ 'flash-ok' if category == 'ok' else 'flash-error' }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>
