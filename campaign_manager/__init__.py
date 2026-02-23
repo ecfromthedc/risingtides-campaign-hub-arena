@@ -23,11 +23,13 @@ def create_app(config=None):
     from campaign_manager.blueprints.internal import internal_bp
     from campaign_manager.blueprints.inbox import inbox_bp
     from campaign_manager.blueprints.webhooks import webhooks_bp
+    from campaign_manager.blueprints.migrate import migrate_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(campaigns_bp)
     app.register_blueprint(internal_bp)
     app.register_blueprint(inbox_bp)
     app.register_blueprint(webhooks_bp)
+    app.register_blueprint(migrate_bp)
 
     return app
