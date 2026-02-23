@@ -235,7 +235,7 @@ export default function InternalCreatorDetail() {
       </div>
 
       {/* Top bar */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h1 className="text-[22px] font-semibold">@{data.username}</h1>
           <p className="text-[#888] text-sm">

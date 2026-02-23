@@ -83,27 +83,27 @@ export function CampaignHeader({
       <div className="rounded-[10px] p-5 text-white" style={{ background: "#1a1a2e" }}>
         <form onSubmit={handleSave}>
           <div className="flex flex-wrap items-end gap-3">
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-xs opacity-60 mb-1">Title</label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-[280px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
+                className="w-full sm:w-[280px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
               />
             </div>
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-xs opacity-60 mb-1">Sound ID or URL</label>
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
                   <Input
                     value={soundId}
                     onChange={(e) => setSoundId(e.target.value)}
-                    className="w-[240px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
+                    className="w-full sm:w-[240px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
                   />
                   <button
                     type="button"
                     onClick={addSoundRow}
-                    className="flex items-center justify-center w-8 h-9 rounded-lg border border-white/30 bg-white/15 text-white hover:bg-white/25 transition-colors"
+                    className="flex-shrink-0 flex items-center justify-center w-8 h-9 rounded-lg border border-white/30 bg-white/15 text-white hover:bg-white/25 transition-colors"
                   >
                     <Plus className="size-4" />
                   </button>
@@ -114,12 +114,12 @@ export function CampaignHeader({
                       value={sound}
                       onChange={(e) => updateSound(i, e.target.value)}
                       placeholder="Sound URL or ID"
-                      className="w-[240px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
+                      className="w-full sm:w-[240px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
                     />
                     <button
                       type="button"
                       onClick={() => removeSoundRow(i)}
-                      className="flex items-center justify-center w-8 h-9 rounded-lg border border-white/30 bg-red-500/30 text-white hover:bg-red-500/50 transition-colors"
+                      className="flex-shrink-0 flex items-center justify-center w-8 h-9 rounded-lg border border-white/30 bg-red-500/30 text-white hover:bg-red-500/50 transition-colors"
                     >
                       <X className="size-4" />
                     </button>
@@ -127,32 +127,32 @@ export function CampaignHeader({
                 ))}
               </div>
             </div>
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-xs opacity-60 mb-1">Start Date</label>
               <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-[150px] bg-white/10 border-white/30 text-white"
+                className="w-full sm:w-[150px] bg-white/10 border-white/30 text-white"
               />
             </div>
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-xs opacity-60 mb-1">Budget ($)</label>
               <Input
                 type="number"
                 step="0.01"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
-                className="w-[120px] bg-white/10 border-white/30 text-white"
+                className="w-full sm:w-[120px] bg-white/10 border-white/30 text-white"
               />
             </div>
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-xs opacity-60 mb-1">Cobrand Link</label>
               <Input
                 value={cobrandLink}
                 onChange={(e) => setCobrandLink(e.target.value)}
                 placeholder="https://music.cobrand.com/promote/..."
-                className="w-[340px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
+                className="w-full sm:w-[340px] bg-white/10 border-white/30 text-white placeholder:text-white/40"
               />
             </div>
             <Button
@@ -177,7 +177,7 @@ export function CampaignHeader({
 
   return (
     <div className="rounded-[10px] p-5 text-white" style={{ background: "#1a1a2e" }}>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h2 className="text-[20px] font-semibold mb-1">{campaign.title}</h2>
           <div className="text-[13px] opacity-70">
@@ -192,9 +192,9 @@ export function CampaignHeader({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Budget info */}
-          <div className="text-right">
+          <div className="md:text-right">
             <div className="text-[13px] opacity-70">
               Budget: USD ${campaign.budget.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>

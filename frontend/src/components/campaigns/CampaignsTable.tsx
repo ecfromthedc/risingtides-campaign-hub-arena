@@ -197,6 +197,7 @@ export function CampaignsTable({ data }: CampaignsTableProps) {
 
   return (
     <div className="bg-white border border-[#e8e8ef] rounded-[10px] overflow-hidden">
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -250,6 +251,7 @@ export function CampaignsTable({ data }: CampaignsTableProps) {
           )}
         </TableBody>
       </Table>
+      </div>
     </div>
   )
 }

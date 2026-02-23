@@ -63,7 +63,7 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
     <div className="bg-white border border-[#e8e8ef] rounded-[10px] p-5">
       <h3 className="text-[15px] font-semibold mb-3">Add Creator</h3>
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2.5">
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">Username</label>
           <Input
             value={username}
@@ -71,10 +71,10 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
             onBlur={lookupPaypal}
             placeholder="@username"
             required
-            className="w-[160px]"
+            className="w-full sm:w-[160px]"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">Posts Owed</label>
           <Input
             type="number"
@@ -82,10 +82,10 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
             value={postsOwed}
             onChange={(e) => setPostsOwed(e.target.value)}
             required
-            className="w-[90px]"
+            className="w-full sm:w-[90px]"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">Price ($)</label>
           <Input
             type="number"
@@ -93,10 +93,10 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
             value={totalRate}
             onChange={(e) => setTotalRate(e.target.value)}
             required
-            className="w-[110px]"
+            className="w-full sm:w-[110px]"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">
             PayPal
             {lookingUpPaypal && (
@@ -108,7 +108,7 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
             value={paypalEmail}
             onChange={(e) => setPaypalEmail(e.target.value)}
             placeholder="email@example.com"
-            className="w-[200px]"
+            className="w-full sm:w-[200px]"
           />
         </div>
         <Button

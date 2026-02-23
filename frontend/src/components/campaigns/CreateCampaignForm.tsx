@@ -49,7 +49,7 @@ export function CreateCampaignForm({ open }: CreateCampaignFormProps) {
         onSubmit={handleSubmit}
         className="flex flex-wrap items-end gap-3"
       >
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">
             Title (Artist - Song Promo)
           </label>
@@ -58,10 +58,10 @@ export function CreateCampaignForm({ open }: CreateCampaignFormProps) {
             onChange={(e) => setTitle(e.target.value)}
             placeholder='e.g. Fred Again "Lights Burn Dimmer" Promo'
             required
-            className="w-[300px]"
+            className="w-full sm:w-[300px]"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">
             Sound ID or URL
           </label>
@@ -70,10 +70,10 @@ export function CreateCampaignForm({ open }: CreateCampaignFormProps) {
             onChange={(e) => setOfficialSound(e.target.value)}
             placeholder="Sound ID, sound URL, or video URL"
             required
-            className="w-[280px]"
+            className="w-full sm:w-[280px]"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">
             Start Date
           </label>
@@ -82,10 +82,10 @@ export function CreateCampaignForm({ open }: CreateCampaignFormProps) {
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             required
-            className="w-[160px]"
+            className="w-full sm:w-[160px]"
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">
             Budget ($)
           </label>
@@ -96,7 +96,7 @@ export function CreateCampaignForm({ open }: CreateCampaignFormProps) {
             onChange={(e) => setBudget(e.target.value)}
             placeholder="1000"
             required
-            className="w-[130px]"
+            className="w-full sm:w-[130px]"
           />
         </div>
         <Button

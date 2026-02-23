@@ -34,7 +34,7 @@ export function CreatorSidebar() {
   }
 
   return (
-    <div className="bg-white border border-[#e8e8ef] rounded-[10px] p-4 sticky top-6">
+    <div className="bg-white border border-[#e8e8ef] rounded-[10px] p-4 lg:sticky lg:top-6">
       <h3 className="text-[15px] font-semibold mb-3">
         Internal Creators ({sorted.length})
       </h3>

@@ -46,7 +46,7 @@ export default function InternalTikTok() {
   return (
     <div>
       {/* Top bar */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h1 className="text-[22px] font-semibold">Internal TikTok</h1>
           <p className="text-[#888] text-sm">
@@ -55,7 +55,7 @@ export default function InternalTikTok() {
         </div>
         <form
           onSubmit={handleScrape}
-          className="flex items-center gap-2.5 flex-shrink-0"
+          className="flex items-center gap-2.5"
         >
           <label className="text-[13px] text-[#666]">Last</label>
           <Input

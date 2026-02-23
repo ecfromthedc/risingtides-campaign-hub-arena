@@ -380,6 +380,7 @@ export function CreatorsTable({
   return (
     <>
       <div className="bg-white border border-[#e8e8ef] rounded-[10px] overflow-hidden">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -435,6 +436,7 @@ export function CreatorsTable({
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Remove Confirmation Dialog */}
