@@ -6,6 +6,10 @@ const navItems = [
     links: [{ label: "Promotions", path: "/" }],
   },
   {
+    section: "Creators",
+    links: [{ label: "Creator Database", path: "/creators" }],
+  },
+  {
     section: "Internal",
     links: [{ label: "Internal TikTok", path: "/internal" }],
   },

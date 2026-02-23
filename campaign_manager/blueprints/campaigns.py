@@ -1117,3 +1117,249 @@ def set_cobrand_links(slug: str):
         save_json(campaign_dir / "campaign.json", meta)
 
     return jsonify({"ok": True, "message": "Cobrand links updated"})
+
+
+# -------------------------------------------------------------------
+# Creator Database
+# -------------------------------------------------------------------
+
+def _get_all_campaigns_data():
+    """Return all campaigns (active + completed) with creators and matched videos.
+
+    Works in both DB and file-based mode.  Returns a list of dicts, each with
+    keys: slug, meta, creators, matched_videos.
+    """
+    results = []
+
+    if _db.is_active():
+        # Query all campaigns regardless of status
+        for status in ("active", "completed"):
+            metas = _db.list_campaigns(status=status)
+            for meta in metas:
+                slug = meta["slug"]
+                creators = _db.get_creators(slug)
+                matched_videos = _db.get_matched_videos(slug)
+                results.append({
+                    "slug": slug,
+                    "meta": meta,
+                    "creators": creators,
+                    "matched_videos": matched_videos,
+                })
+    else:
+        ensure_dirs()
+        for parent_dir in (ACTIVE_DIR, COMPLETED_DIR):
+            if not parent_dir.exists():
+                continue
+            for d in parent_dir.iterdir():
+                if not d.is_dir():
+                    continue
+                meta = load_json(d / "campaign.json")
+                if not meta:
+                    continue
+                creators = load_creators(d)
+                matched_videos = load_matched_videos(d)
+                results.append({
+                    "slug": d.name,
+                    "meta": meta,
+                    "creators": creators,
+                    "matched_videos": matched_videos,
+                })
+
+    return results
+
+
+@campaigns_bp.get("/api/creators")
+def list_creators():
+    """List all unique creators with aggregated stats across campaigns."""
+    all_campaigns = _get_all_campaigns_data()
+
+    # Aggregate by username (case-insensitive)
+    creator_map: Dict[str, Dict] = {}
+
+    for camp in all_campaigns:
+        slug = camp["slug"]
+        meta = camp["meta"]
+        title = campaign_title(meta)
+        creators = camp["creators"]
+        matched_videos = camp["matched_videos"]
+
+        # Build a views-by-account map for this campaign
+        views_by_account: Dict[str, int] = {}
+        for v in matched_videos:
+            acct = (v.get("account", "") or "").lstrip("@").lower()
+            if acct:
+                views_by_account[acct] = views_by_account.get(acct, 0) + int(v.get("views", 0) or 0)
+
+        for c in creators:
+            if c.get("status", "active") == "removed":
+                continue
+
+            uname = (c.get("username", "") or "").strip()
+            if not uname:
+                continue
+            key = uname.lower()
+
+            if key not in creator_map:
+                creator_map[key] = {
+                    "username": uname,
+                    "campaigns_count": 0,
+                    "total_posts_owed": 0,
+                    "total_posts_done": 0,
+                    "total_spend": 0.0,
+                    "total_payout": 0.0,
+                    "total_views": 0,
+                    "platform": c.get("platform", "tiktok"),
+                    "paypal_email": c.get("paypal_email", ""),
+                    "_platforms": [],
+                }
+
+            entry = creator_map[key]
+            entry["campaigns_count"] += 1
+            entry["total_posts_owed"] += int(c.get("posts_owed", 0) or 0)
+            entry["total_posts_done"] += int(c.get("posts_done", 0) or 0)
+            entry["total_spend"] += float(c.get("total_rate", 0) or 0)
+            if str(c.get("paid", "no")).lower() == "yes":
+                entry["total_payout"] += float(c.get("total_rate", 0) or 0)
+            entry["total_views"] += views_by_account.get(key, 0)
+            entry["_platforms"].append(c.get("platform", "tiktok"))
+
+            # Keep latest non-empty paypal
+            pp = (c.get("paypal_email", "") or "").strip()
+            if pp:
+                entry["paypal_email"] = pp
+
+    # Finalize: compute avg_cpm, pick most common platform, remove internals
+    results = []
+    for entry in creator_map.values():
+        platforms = entry.pop("_platforms", [])
+        if platforms:
+            entry["platform"] = max(set(platforms), key=platforms.count)
+
+        if entry["total_views"] > 0:
+            entry["avg_cpm"] = round(
+                (entry["total_spend"] / entry["total_views"]) * 1_000_000, 2
+            )
+        else:
+            entry["avg_cpm"] = None
+
+        entry["total_spend"] = round(entry["total_spend"], 2)
+        entry["total_payout"] = round(entry["total_payout"], 2)
+        results.append(entry)
+
+    # Sort by total_spend descending
+    results.sort(key=lambda x: x["total_spend"], reverse=True)
+    return jsonify(results)
+
+
+@campaigns_bp.get("/api/creators/<username>")
+def creator_profile(username: str):
+    """Full creator profile with cross-campaign data."""
+    all_campaigns = _get_all_campaigns_data()
+    uname_lower = username.lower()
+
+    campaigns_list = []
+    all_videos = []
+    total_posts_owed = 0
+    total_posts_done = 0
+    total_spend = 0.0
+    total_payout = 0.0
+    total_views = 0
+    total_likes = 0
+    platforms = []
+    paypal_email = ""
+
+    for camp in all_campaigns:
+        slug = camp["slug"]
+        meta = camp["meta"]
+        title = campaign_title(meta)
+        creators = camp["creators"]
+        matched_videos = camp["matched_videos"]
+
+        # Find this creator in the campaign
+        creator_entry = None
+        for c in creators:
+            if (c.get("username", "") or "").lower() == uname_lower and c.get("status", "active") != "removed":
+                creator_entry = c
+                break
+
+        if not creator_entry:
+            continue
+
+        posts_owed = int(creator_entry.get("posts_owed", 0) or 0)
+        posts_done = int(creator_entry.get("posts_done", 0) or 0)
+        rate = float(creator_entry.get("total_rate", 0) or 0)
+        paid = creator_entry.get("paid", "no")
+        platform = creator_entry.get("platform", "tiktok")
+        platforms.append(platform)
+
+        total_posts_owed += posts_owed
+        total_posts_done += posts_done
+        total_spend += rate
+        if str(paid).lower() == "yes":
+            total_payout += rate
+
+        pp = (creator_entry.get("paypal_email", "") or "").strip()
+        if pp:
+            paypal_email = pp
+
+        # Gather matched videos for this creator in this campaign
+        campaign_views = 0
+        for v in matched_videos:
+            acct = (v.get("account", "") or "").lstrip("@").lower()
+            if acct == uname_lower:
+                views = int(v.get("views", 0) or 0)
+                likes = int(v.get("likes", 0) or 0)
+                total_views += views
+                total_likes += likes
+                campaign_views += views
+                all_videos.append({
+                    "url": v.get("url", ""),
+                    "campaign_slug": slug,
+                    "campaign_title": title,
+                    "views": views,
+                    "likes": likes,
+                    "upload_date": v.get("upload_date", ""),
+                })
+
+        campaigns_list.append({
+            "slug": slug,
+            "title": title,
+            "artist": meta.get("artist", ""),
+            "song": meta.get("song", ""),
+            "posts_owed": posts_owed,
+            "posts_done": posts_done,
+            "total_rate": rate,
+            "paid": paid,
+            "payment_date": creator_entry.get("payment_date", ""),
+            "status": creator_entry.get("status", "active"),
+            "notes": creator_entry.get("notes", ""),
+        })
+
+    if not campaigns_list:
+        return jsonify({"error": f"Creator @{username} not found in any campaign."}), 404
+
+    platform = "tiktok"
+    if platforms:
+        platform = max(set(platforms), key=platforms.count)
+
+    avg_cpm = None
+    if total_views > 0:
+        avg_cpm = round((total_spend / total_views) * 1_000_000, 2)
+
+    return jsonify({
+        "username": username,
+        "platform": platform,
+        "paypal_email": paypal_email,
+        "stats": {
+            "campaigns_count": len(campaigns_list),
+            "total_posts_owed": total_posts_owed,
+            "total_posts_done": total_posts_done,
+            "total_spend": round(total_spend, 2),
+            "total_payout": round(total_payout, 2),
+            "total_views": total_views,
+            "total_likes": total_likes,
+            "avg_cpm": avg_cpm,
+        },
+        "campaigns": campaigns_list,
+        "videos": all_videos,
+    })

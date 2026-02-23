@@ -3,6 +3,8 @@ import type {
   CampaignDetail,
   MatchedVideo,
   CobrandStats,
+  CreatorSummary,
+  CreatorProfile,
   InternalCreator,
   InternalScrapeResults,
   InternalSongResult,
@@ -118,6 +120,11 @@ export const api = {
 
   getPaypal: (username: string) =>
     request<{ paypal: string }>(`/api/paypal/${username}`),
+
+  // Creator Database
+  getCreators: () => request<CreatorSummary[]>("/api/creators"),
+  getCreatorProfile: (username: string) =>
+    request<CreatorProfile>(`/api/creators/${username}`),
 
   // Cobrand
   getCobrandStats: (slug: string) =>

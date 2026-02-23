@@ -8,6 +8,8 @@ export const keys = {
   campaignLinks: (slug: string) => ["campaign", slug, "links"] as const,
   cobrandStats: (slug: string) => ["campaign", slug, "cobrand"] as const,
   search: (q: string) => ["search", q] as const,
+  creators: ["creators"] as const,
+  creatorProfile: (username: string) => ["creators", username] as const,
   internalCreators: ["internal", "creators"] as const,
   internalResults: ["internal", "results"] as const,
   internalScrapeStatus: ["internal", "scrape-status"] as const,
@@ -136,6 +138,20 @@ export function usePaypal(username: string) {
   return useQuery({
     queryKey: keys.paypal(username),
     queryFn: () => api.getPaypal(username),
+    enabled: !!username,
+  })
+}
+
+// --- Creator Database ---
+
+export function useCreators() {
+  return useQuery({ queryKey: keys.creators, queryFn: api.getCreators })
+}
+
+export function useCreatorProfile(username: string) {
+  return useQuery({
+    queryKey: keys.creatorProfile(username),
+    queryFn: () => api.getCreatorProfile(username),
     enabled: !!username,
   })
 }

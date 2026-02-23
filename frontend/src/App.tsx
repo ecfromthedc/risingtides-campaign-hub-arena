@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { Layout } from "./components/layout/Layout"
 import CampaignsList from "./pages/CampaignsList"
 import CampaignDetail from "./pages/CampaignDetail"
+import CreatorDatabase from "./pages/CreatorDatabase"
+import CreatorProfilePage from "./pages/CreatorProfilePage"
 import InternalTikTok from "./pages/InternalTikTok"
 import InternalCreatorDetail from "./pages/InternalCreatorDetail"
 import SlackInbox from "./pages/SlackInbox"
@@ -13,6 +15,8 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<CampaignsList />} />
           <Route path="/campaign/:slug" element={<CampaignDetail />} />
+          <Route path="/creators" element={<CreatorDatabase />} />
+          <Route path="/creators/:username" element={<CreatorProfilePage />} />
           <Route path="/internal" element={<InternalTikTok />} />
           <Route path="/internal/:username" element={<InternalCreatorDetail />} />
           <Route path="/inbox" element={<SlackInbox />} />

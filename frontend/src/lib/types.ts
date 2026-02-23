@@ -188,6 +188,61 @@ export interface InboxItem {
   creators_added?: string[]
 }
 
+// Creator Database types
+export interface CreatorProfile {
+  username: string
+  platform: string
+  paypal_email: string
+  stats: {
+    campaigns_count: number
+    total_posts_owed: number
+    total_posts_done: number
+    total_spend: number
+    total_payout: number
+    total_views: number
+    total_likes: number
+    avg_cpm: number | null
+  }
+  campaigns: CreatorCampaignEntry[]
+  videos: CreatorVideo[]
+}
+
+export interface CreatorCampaignEntry {
+  slug: string
+  title: string
+  artist: string
+  song: string
+  posts_owed: number
+  posts_done: number
+  total_rate: number
+  paid: string
+  payment_date: string
+  status: string
+  notes: string
+}
+
+export interface CreatorVideo {
+  url: string
+  campaign_slug: string
+  campaign_title: string
+  views: number
+  likes: number
+  upload_date: string
+}
+
+export interface CreatorSummary {
+  username: string
+  campaigns_count: number
+  total_posts_owed: number
+  total_posts_done: number
+  total_spend: number
+  total_payout: number
+  total_views: number
+  avg_cpm: number | null
+  platform: string
+  paypal_email: string
+}
+
 // API response wrappers
 export interface ApiOk {
   ok: boolean
