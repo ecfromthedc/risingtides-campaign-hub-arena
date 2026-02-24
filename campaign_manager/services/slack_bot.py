@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from typing import Optional
 
 from slack_bolt import App
@@ -17,18 +16,6 @@ from campaign_manager.services.llm import parse_booking_message
 log = logging.getLogger(__name__)
 
 _slack_app: Optional[App] = None
-
-# Signals that a message might be a booking (at least one must match)
-_BOOKING_SIGNALS = re.compile(
-    r"(?:"
-    r"@[\w.]+"          # @username mention
-    r"|book\b"          # "book" keyword
-    r"|\bposts?\b"      # "post" or "posts"
-    r"|\$\d+"           # dollar amount
-    r"|\d+\s*/\s*\$"    # "5/$100" pattern
-    r")",
-    re.IGNORECASE,
-)
 
 
 def init_slack_app() -> Optional[App]:
@@ -66,11 +53,7 @@ def init_slack_app() -> Optional[App]:
         if not text.strip():
             return
 
-        # Quick check: does this look like it could be a booking?
-        if not _BOOKING_SIGNALS.search(text):
-            return
-
-        log.info("Processing potential booking message: %.100s...", text)
+        log.info("Processing message: %.100s...", text)
 
         # Get available campaigns for context
         from campaign_manager.blueprints.campaigns import get_campaigns
