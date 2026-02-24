@@ -168,6 +168,12 @@ def parse_booking_message(
         _last_raw_response = text
         log.info("LLM raw response: %.500s", text)
 
+        # Strip markdown code fences if present
+        if text.startswith("```"):
+            text = text.strip("`").strip()
+            if text.startswith("json"):
+                text = text[4:].strip()
+
         if text.lower() == "null" or not text:
             log.info("LLM explicitly returned null")
             return None
