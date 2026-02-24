@@ -39,6 +39,19 @@ def init(database_url: Optional[str] = None):
 
     # Create all tables
     Base.metadata.create_all(_engine)
+
+    # Fix: null out empty notion_page_id values so unique constraint works
+    try:
+        with _SessionLocal() as s:
+            s.execute(
+                __import__("sqlalchemy").text(
+                    "UPDATE campaigns SET notion_page_id = NULL WHERE notion_page_id = ''"
+                )
+            )
+            s.commit()
+    except Exception:
+        pass
+
     return True
 
 
@@ -97,7 +110,9 @@ def save_campaign(slug: str, meta: Dict):
         c.cobrand_promotion_id = meta.get("cobrand_promotion_id", c.cobrand_promotion_id or "")
         c.cobrand_status = meta.get("cobrand_status", c.cobrand_status or "")
         c.source = meta.get("source", c.source or "manual")
-        c.notion_page_id = meta.get("notion_page_id", c.notion_page_id)
+        # Use None instead of "" so the unique constraint allows multiple unset values
+        raw_notion_id = meta.get("notion_page_id", c.notion_page_id)
+        c.notion_page_id = raw_notion_id if raw_notion_id else None
         c.insta_sound = meta.get("insta_sound", c.insta_sound or "")
         c.campaign_stage = meta.get("campaign_stage", c.campaign_stage or "")
         c.round = meta.get("round", c.round or "")
