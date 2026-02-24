@@ -24,6 +24,7 @@ def create_app(config=None):
     from campaign_manager.blueprints.inbox import inbox_bp
     from campaign_manager.blueprints.webhooks import webhooks_bp
     from campaign_manager.blueprints.migrate import migrate_bp
+    from campaign_manager.blueprints.slack_events import slack_events_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(campaigns_bp)
@@ -31,5 +32,11 @@ def create_app(config=None):
     app.register_blueprint(inbox_bp)
     app.register_blueprint(webhooks_bp)
     app.register_blueprint(migrate_bp)
+    app.register_blueprint(slack_events_bp)
+
+    # Initialize Slack bot (no-op if credentials aren't set)
+    if app.config.get("SLACK_BOT_TOKEN"):
+        from campaign_manager.services.slack_bot import init_slack_app
+        init_slack_app()
 
     return app

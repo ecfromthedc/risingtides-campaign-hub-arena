@@ -11,3 +11,11 @@ class Config:
         "NOTION_CRM_DATABASE_ID", "1961465b-b829-80c9-a1b5-c4cb3284149a"
     )
     IS_RAILWAY = os.environ.get("RAILWAY_ENVIRONMENT") is not None
+
+    # Slack integration
+    SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "")
+    SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", "")
+    SLACK_BOOKING_CHANNEL = os.environ.get("SLACK_BOOKING_CHANNEL", "")
+
+    # Anthropic Claude API (for Slack message parsing)
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")

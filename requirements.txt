@@ -32,3 +32,9 @@ tqdm>=4.66.0
 # CORS support
 flask-cors>=4.0.0
 
+# Slack bot (Events API integration)
+slack-bolt>=1.18.0
+
+# Anthropic Claude API (LLM parsing for Slack messages)
+anthropic>=0.40.0
+

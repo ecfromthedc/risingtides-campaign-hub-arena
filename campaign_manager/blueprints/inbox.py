@@ -8,8 +8,7 @@ import json
 import os
 import re
 from datetime import date, datetime
-from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from flask import Blueprint, jsonify, request
 
@@ -107,33 +106,31 @@ def _suggest_campaign(name: str, raw_message: str) -> tuple:
 
 
 # ===================================================================
-# Routes
+# Shared helpers
 # ===================================================================
 
-# -------------------------------------------------------------------
-# 1. POST /api/inbox  -- add an inbox item
-# -------------------------------------------------------------------
-@inbox_bp.post("/api/inbox")
-def inbox_add():
-    """Open CLAW posts a parsed booking recommendation here."""
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "JSON body required"}), 400
+def create_inbox_item(
+    source: str = "slack",
+    raw_message: str = "",
+    campaign_name: str = "",
+    campaign_slug: str = "",
+    creators: Optional[List] = None,
+    notes: str = "",
+) -> Dict:
+    """Create an inbox item from structured data.
+
+    Used by both the HTTP endpoint (POST /api/inbox) and the Slack bot.
+    Returns the created item dict.
+    """
+    creators_data = list(creators or [])
 
     # Auto-extract PayPal emails from raw_message and per-creator data
-    creators_data = data.get("creators", [])
-    raw_msg = data.get("raw_message", "")
-
-    # Try to extract PayPal info from raw message text
-    # Look for patterns like "username - email@example.com" or "username: email@example.com"
-    if raw_msg:
+    if raw_message:
         email_pattern = re.compile(r'@?([\w.]+)\s*[-:–]\s*([\w.+-]+@[\w.-]+\.\w+)')
-        for match in email_pattern.finditer(raw_msg):
+        for match in email_pattern.finditer(raw_message):
             uname = match.group(1).lower().strip()
             email = match.group(2).strip()
-            # Save to paypal memory for future auto-fill
             remember_paypal(uname, email)
-            # Also attach to matching creator in the list
             for cr in creators_data:
                 cr_name = cr.get("username", "").strip().lstrip("@").lower()
                 if cr_name == uname and not cr.get("paypal_email"):
@@ -146,31 +143,28 @@ def inbox_add():
         if uname and paypal:
             remember_paypal(uname, paypal)
         elif uname and not paypal:
-            # Try to auto-fill from memory
             remembered = recall_paypal(uname)
             if remembered:
                 cr["paypal_email"] = remembered
 
     # Auto-suggest campaign if slug not provided
-    campaign_slug = data.get("campaign_slug", "")
-    campaign_name = data.get("campaign_name", "")
     suggested = False
     if not campaign_slug:
         campaign_slug, campaign_name, suggested = _suggest_campaign(
-            campaign_name, raw_msg
+            campaign_name, raw_message
         )
 
     item = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S") + f"-{os.urandom(3).hex()}",
         "created_at": datetime.now().isoformat(),
         "status": "pending",
-        "source": data.get("source", "slack"),
-        "raw_message": raw_msg,
+        "source": source,
+        "raw_message": raw_message,
         "campaign_name": campaign_name,
         "campaign_slug": campaign_slug,
         "campaign_suggested": suggested,
         "creators": creators_data,
-        "notes": data.get("notes", ""),
+        "notes": notes,
     }
 
     if _db.is_active():
@@ -179,6 +173,32 @@ def inbox_add():
         inbox = load_inbox()
         inbox.insert(0, item)
         save_inbox(inbox)
+
+    return item
+
+
+# ===================================================================
+# Routes
+# ===================================================================
+
+# -------------------------------------------------------------------
+# 1. POST /api/inbox  -- add an inbox item
+# -------------------------------------------------------------------
+@inbox_bp.post("/api/inbox")
+def inbox_add():
+    """Open CLAW (or any external agent) posts a parsed booking here."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
+    item = create_inbox_item(
+        source=data.get("source", "slack"),
+        raw_message=data.get("raw_message", ""),
+        campaign_name=data.get("campaign_name", ""),
+        campaign_slug=data.get("campaign_slug", ""),
+        creators=data.get("creators", []),
+        notes=data.get("notes", ""),
+    )
 
     return jsonify({"ok": True, "id": item["id"], "message": "Added to inbox"})
 
