@@ -1,8 +1,16 @@
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Plus, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
+import { CreatorAutocomplete } from "@/components/CreatorAutocomplete"
 
 interface AddCreatorFormProps {
   onAdd: (data: {
@@ -20,6 +28,7 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
   const [postsOwed, setPostsOwed] = useState("5")
   const [totalRate, setTotalRate] = useState("100")
   const [paypalEmail, setPaypalEmail] = useState("")
+  const [platform, setPlatform] = useState("tiktok")
   const [lookingUpPaypal, setLookingUpPaypal] = useState(false)
 
   const lookupPaypal = useCallback(async () => {
@@ -49,7 +58,7 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
       posts_owed: parseInt(postsOwed, 10),
       total_rate: parseFloat(totalRate),
       paypal_email: paypalEmail,
-      platform: "tiktok",
+      platform,
     })
 
     // Reset form
@@ -57,6 +66,7 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
     setPostsOwed("5")
     setTotalRate("100")
     setPaypalEmail("")
+    setPlatform("tiktok")
   }
 
   return (
@@ -65,14 +75,25 @@ export function AddCreatorForm({ onAdd, isPending }: AddCreatorFormProps) {
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2.5">
         <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">Username</label>
-          <Input
+          <CreatorAutocomplete
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={setUsername}
+            onSelect={lookupPaypal}
             onBlur={lookupPaypal}
-            placeholder="@username"
-            required
             className="w-full sm:w-[160px]"
           />
+        </div>
+        <div className="w-full sm:w-auto">
+          <label className="block text-[#888] text-[13px] mb-1">Platform</label>
+          <Select value={platform} onValueChange={setPlatform}>
+            <SelectTrigger className="w-full sm:w-[120px] h-9 text-[13px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tiktok">TikTok</SelectItem>
+              <SelectItem value="instagram">Instagram</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="w-full sm:w-auto">
           <label className="block text-[#888] text-[13px] mb-1">Posts Owed</label>

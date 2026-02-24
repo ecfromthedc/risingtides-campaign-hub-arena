@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
+import { CreatorAutocomplete } from "@/components/CreatorAutocomplete"
 
 interface InboxCardProps {
   item: InboxItem
@@ -114,9 +115,9 @@ function PendingCard({ item, campaigns }: InboxCardProps) {
               {creators.map((cr, idx) => (
                 <tr key={idx}>
                   <td className="px-3 py-1">
-                    <Input
+                    <CreatorAutocomplete
                       value={cr.username}
-                      onChange={(e) => updateCreator(idx, "username", e.target.value)}
+                      onChange={(val) => updateCreator(idx, "username", val)}
                       className="w-[130px] h-7 text-[13px] font-semibold"
                     />
                   </td>
