@@ -12,11 +12,13 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
+from zoneinfo import ZoneInfo
+
+EST = ZoneInfo("America/New_York")
 
 from flask import Blueprint, jsonify, request
 
 from campaign_manager import db as _db
-from campaign_manager.utils.helpers import is_original_sound
 
 internal_bp = Blueprint("internal", __name__)
 
@@ -115,7 +117,7 @@ def merge_into_cache(username: str, new_videos: List[Dict]) -> List[Dict]:
         return _db.merge_internal_cache(username, new_videos)
 
     from datetime import timedelta
-    cutoff = datetime.now() - timedelta(days=30)
+    cutoff = datetime.now(EST) - timedelta(days=30)
 
     existing = load_account_cache(username)
     seen_urls = {v.get("url") for v in existing if v.get("url")}
@@ -174,7 +176,7 @@ def _run_internal_scrape(hours: int, creators: List[str]):
         return
 
     try:
-        end_dt = datetime.now()
+        end_dt = datetime.now(EST)
         start_dt = end_dt - timedelta(hours=hours)
 
         all_videos: List[Dict] = []
@@ -218,16 +220,13 @@ def _run_internal_scrape(hours: int, creators: List[str]):
 
                 _internal_scrape_status["progress"] = f"Scraped {completed_count}/{total} accounts ({successful} ok, {failed} failed)"
 
-        # Filter out original sounds
-        filtered = [v for v in all_videos if not is_original_sound(v.get("song", ""), v.get("artist", ""))]
-
         # Group by song
         songs_dict = defaultdict(lambda: {
             "song": "", "artist": "", "videos": [], "accounts": set(),
             "total_views": 0, "total_likes": 0,
         })
 
-        for video in filtered:
+        for video in all_videos:
             song_key = normalize_song_key(video.get("song", ""), video.get("artist", ""))
             entry = songs_dict[song_key]
             entry["song"] = video.get("song", "Unknown")
@@ -251,14 +250,14 @@ def _run_internal_scrape(hours: int, creators: List[str]):
             songs_list.append(data)
 
         results = {
-            "scraped_at": datetime.now().isoformat(),
+            "scraped_at": datetime.now(EST).isoformat(),
             "hours": hours,
             "start_dt": start_dt.isoformat(),
             "end_dt": end_dt.isoformat(),
             "accounts_total": total,
             "accounts_successful": successful,
             "accounts_failed": failed,
-            "total_videos": len(filtered),
+            "total_videos": len(all_videos),
             "total_videos_unfiltered": len(all_videos),
             "unique_songs": len(songs_list),
             "songs": songs_list,
@@ -270,8 +269,8 @@ def _run_internal_scrape(hours: int, creators: List[str]):
             "done": True,
             "progress": (
                 f"Done: {successful}/{total} accounts, "
-                f"{len(filtered)} videos ({len(all_videos) - len(filtered)} original sounds filtered), "
-                f"{len(songs_list)} unique songs"
+                f"{len(all_videos)} videos, "
+                f"{len(songs_list)} unique sounds"
             ),
         }
     except Exception as e:
@@ -404,16 +403,13 @@ def creator_detail(username: str):
     # Load all cached videos for this account
     cached = load_account_cache(username)
 
-    # Filter out original sounds
-    filtered = [v for v in cached if not is_original_sound(v.get("song", ""), v.get("artist", ""))]
-
     # Group by song
     from collections import defaultdict
     songs_dict = defaultdict(lambda: {
         "song": "", "artist": "", "videos": [], "total_views": 0, "total_likes": 0,
     })
 
-    for v in filtered:
+    for v in cached:
         key = f"{(v.get('song') or 'Unknown').strip()} - {(v.get('artist') or 'Unknown').strip()}"
         entry = songs_dict[key]
         entry["song"] = v.get("song", "Unknown")
@@ -428,14 +424,13 @@ def creator_detail(username: str):
         data["key"] = key
         songs_list.append(data)
 
-    total_views = sum(v.get("views", 0) for v in filtered)
-    total_likes = sum(v.get("likes", 0) for v in filtered)
+    total_views = sum(v.get("views", 0) for v in cached)
+    total_likes = sum(v.get("likes", 0) for v in cached)
 
     return jsonify({
         "username": username,
         "songs": songs_list,
-        "total_videos": len(filtered),
-        "total_videos_raw": len(cached),
+        "total_videos": len(cached),
         "total_views": total_views,
         "total_likes": total_likes,
     })

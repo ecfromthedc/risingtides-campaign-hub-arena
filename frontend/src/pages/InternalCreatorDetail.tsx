@@ -215,11 +215,6 @@ export default function InternalCreatorDetail() {
     )
   }
 
-  const filteredCount =
-    data.total_videos_raw && data.total_videos_raw !== data.total_videos
-      ? data.total_videos_raw - data.total_videos
-      : 0
-
   return (
     <div>
       {/* Breadcrumb */}
@@ -240,9 +235,6 @@ export default function InternalCreatorDetail() {
           <h1 className="text-[22px] font-semibold">@{data.username}</h1>
           <p className="text-[#888] text-sm">
             Last 30 days &middot; {data.total_videos} posts
-            {filteredCount > 0 && (
-              <span> ({filteredCount} original sounds filtered)</span>
-            )}
           </p>
         </div>
         <a

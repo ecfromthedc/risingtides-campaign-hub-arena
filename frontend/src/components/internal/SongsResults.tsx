@@ -213,27 +213,16 @@ export function SongsResults({ results, isLoading }: SongsResultsProps) {
 
   // Has results with songs
   if (results && results.songs && results.songs.length > 0) {
-    const filtered =
-      results.total_videos_unfiltered &&
-      results.total_videos_unfiltered !== results.total_videos
-        ? results.total_videos_unfiltered - results.total_videos
-        : 0
-
     return (
       <div>
         {/* Header */}
         <div className="flex items-baseline justify-between mb-3">
           <h3 className="text-[15px] font-semibold">
-            Songs Found ({results.songs.length})
+            Sounds Found ({results.songs.length})
             <span className="text-[#888] font-normal">
               {" "}
               &mdash; {results.hours}h window
             </span>
-            {filtered > 0 && (
-              <span className="text-[#888] font-normal text-[12px] ml-1">
-                ({filtered} original sounds filtered)
-              </span>
-            )}
           </h3>
         </div>
 
