@@ -149,15 +149,17 @@ def parse_booking_message(
     try:
         client = _get_client()
         response = client.messages.create(
-            model="claude-haiku-4-20250414",
+            model="claude-haiku-4-5-20251001",
             max_tokens=1024,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_msg}],
         )
 
         text = response.content[0].text.strip()
+        log.info("LLM raw response: %.500s", text)
 
         if text.lower() == "null" or not text:
+            log.info("LLM explicitly returned null")
             return None
 
         parsed = json.loads(text)
@@ -190,11 +192,11 @@ def parse_booking_message(
         }
 
     except json.JSONDecodeError as e:
-        log.error("LLM returned invalid JSON: %s", e)
+        log.error("LLM returned invalid JSON: %s — raw: %s", e, text)
         return None
     except anthropic.APIError as e:
         log.error("Claude API error: %s", e)
         return None
     except Exception as e:
-        log.error("Unexpected error parsing booking message: %s", e)
+        log.error("Unexpected error parsing booking message: %s", e, exc_info=True)
         return None
