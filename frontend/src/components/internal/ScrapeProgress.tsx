@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useInternalScrapeStatus, keys } from "@/lib/queries"
 import { Loader2 } from "lucide-react"
@@ -13,9 +13,18 @@ interface ScrapeProgressProps {
 export function ScrapeProgress({ enabled, onComplete }: ScrapeProgressProps) {
   const queryClient = useQueryClient()
   const { data: status } = useInternalScrapeStatus(enabled)
+  const completedRef = useRef(false)
 
   useEffect(() => {
-    if (status && status.done && !status.running) {
+    // Reset the guard when a new scrape starts
+    if (enabled && status?.running) {
+      completedRef.current = false
+    }
+  }, [enabled, status?.running])
+
+  useEffect(() => {
+    if (status && status.done && !status.running && !completedRef.current) {
+      completedRef.current = true
       // Scrape finished -- refetch results + creators
       queryClient.invalidateQueries({ queryKey: keys.internalResults })
       queryClient.invalidateQueries({ queryKey: keys.internalCreators })
@@ -24,7 +33,7 @@ export function ScrapeProgress({ enabled, onComplete }: ScrapeProgressProps) {
   }, [status, queryClient, onComplete])
 
   // Don't render anything if not actively scraping
-  if (!enabled && !status?.running) return null
+  if (!enabled || !status?.running) return null
 
   return (
     <div className="mb-4">

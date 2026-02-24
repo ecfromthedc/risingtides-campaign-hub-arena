@@ -220,7 +220,10 @@ export function useInternalScrapeStatus(enabled = false) {
     enabled,
     refetchInterval: (query) => {
       const data = query.state.data
-      return data?.running ? 2000 : false
+      // Keep polling while running OR while we haven't seen the done signal yet
+      if (data?.running) return 2000
+      if (enabled && !data?.done) return 2000
+      return false
     },
   })
 }

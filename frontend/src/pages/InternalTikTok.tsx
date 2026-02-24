@@ -22,8 +22,8 @@ export default function InternalTikTok() {
   const triggerScrape = useTriggerInternalScrape()
 
   // Check if scrape is already running on mount
-  const scrapeStatus = useInternalScrapeStatus(true)
-  const isRunning = scraping || scrapeStatus.data?.running
+  const { data: scrapeStatus } = useInternalScrapeStatus(true)
+  const isRunning = scraping || !!scrapeStatus?.running
 
   function handleScrape(e: React.FormEvent) {
     e.preventDefault()
@@ -37,11 +37,23 @@ export default function InternalTikTok() {
 
   // Stat values
   const accountCount = creators?.length ?? 0
-  const lastScrape = results?.scraped_at
-    ? results.scraped_at.slice(0, 16).replace("T", " ")
-    : "Never"
   const videosFound = results?.total_videos ?? 0
   const uniqueSongs = results?.unique_songs ?? 0
+
+  // Format last scrape timestamp
+  const lastScrapeRaw = results?.scraped_at
+  let lastScrape = "Never"
+  if (lastScrapeRaw) {
+    const d = new Date(lastScrapeRaw)
+    lastScrape = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }) + " " + d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
 
   return (
     <div>
@@ -70,7 +82,7 @@ export default function InternalTikTok() {
           <Button
             type="submit"
             className="bg-[#0b62d6] hover:bg-[#0951b5] text-white"
-            disabled={!!isRunning}
+            disabled={isRunning}
           >
             {isRunning ? (
               <>
@@ -85,7 +97,7 @@ export default function InternalTikTok() {
       </div>
 
       {/* Scrape progress */}
-      <ScrapeProgress enabled={!!isRunning} onComplete={handleScrapeComplete} />
+      <ScrapeProgress enabled={isRunning} onComplete={handleScrapeComplete} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
@@ -112,6 +124,17 @@ export default function InternalTikTok() {
           </div>
         ))}
       </div>
+
+      {/* Last scrape details */}
+      {results?.scraped_at && (
+        <div className="mb-5 text-[13px] text-[#888] flex flex-wrap gap-x-4 gap-y-1">
+          <span>{results.accounts_successful}/{results.accounts_total} accounts scraped</span>
+          {results.accounts_failed > 0 && (
+            <span className="text-red-500">{results.accounts_failed} failed</span>
+          )}
+          <span>{results.hours}h window</span>
+        </div>
+      )}
 
       {/* Two-column layout: sidebar + results */}
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
