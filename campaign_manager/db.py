@@ -55,6 +55,23 @@ def init(database_url: Optional[str] = None):
     except Exception:
         pass
 
+    # One-time migration: shift existing UTC scrape timestamps to EST (-5h)
+    # Safe to re-run: only touches rows where scraped_at > now (i.e. still UTC-ahead)
+    try:
+        with _SessionLocal() as s:
+            s.execute(
+                __import__("sqlalchemy").text(
+                    "UPDATE internal_scrape_results "
+                    "SET scraped_at = scraped_at - INTERVAL '5 hours', "
+                    "    start_dt = start_dt - INTERVAL '5 hours', "
+                    "    end_dt = end_dt - INTERVAL '5 hours' "
+                    "WHERE scraped_at > NOW()"
+                )
+            )
+            s.commit()
+    except Exception:
+        pass
+
     return True
 
 
