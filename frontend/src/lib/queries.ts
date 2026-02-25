@@ -264,7 +264,8 @@ export function useApproveInbox() {
     }) => api.approveInbox(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inbox"] })
-      qc.invalidateQueries({ queryKey: keys.campaigns })
+      qc.invalidateQueries({ queryKey: ["campaigns"] })
+      qc.invalidateQueries({ queryKey: ["campaign"] })
     },
   })
 }
