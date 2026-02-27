@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
 import {
   type ColumnDef,
@@ -129,6 +129,15 @@ export function CreatorsTable({
     paypalEmail: "",
     notes: "",
   })
+  const editStateRef = useRef(editState)
+  editStateRef.current = editState
+
+  const updateField = useCallback(
+    (field: keyof EditState, value: string) => {
+      setEditState((s) => ({ ...s, [field]: value }))
+    },
+    []
+  )
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -147,11 +156,12 @@ export function CreatorsTable({
   }
 
   function saveEdit(username: string) {
+    const current = editStateRef.current
     onEditCreator(username, {
-      posts_owed: parseInt(editState.postsOwed, 10),
-      total_rate: parseFloat(editState.totalRate),
-      paypal_email: editState.paypalEmail,
-      notes: editState.notes,
+      posts_owed: parseInt(current.postsOwed, 10),
+      total_rate: parseFloat(current.totalRate),
+      paypal_email: current.paypalEmail,
+      notes: current.notes,
     })
     setEditingUsername(null)
   }
@@ -226,10 +236,8 @@ export function CreatorsTable({
                 <Input
                   type="number"
                   min="0"
-                  value={editState.postsOwed}
-                  onChange={(e) =>
-                    setEditState((s) => ({ ...s, postsOwed: e.target.value }))
-                  }
+                  defaultValue={editStateRef.current.postsOwed}
+                  onChange={(e) => updateField("postsOwed", e.target.value)}
                   className="w-[65px] h-8 text-sm"
                 />
               </div>
@@ -258,10 +266,8 @@ export function CreatorsTable({
                 type="number"
                 step="0.01"
                 min="0"
-                value={editState.totalRate}
-                onChange={(e) =>
-                  setEditState((s) => ({ ...s, totalRate: e.target.value }))
-                }
+                defaultValue={editStateRef.current.totalRate}
+                onChange={(e) => updateField("totalRate", e.target.value)}
                 className="w-[90px] h-8 text-sm"
               />
             )
@@ -289,13 +295,8 @@ export function CreatorsTable({
               <div className="flex items-center gap-2">
                 <Input
                   type="email"
-                  value={editState.paypalEmail}
-                  onChange={(e) =>
-                    setEditState((s) => ({
-                      ...s,
-                      paypalEmail: e.target.value,
-                    }))
-                  }
+                  defaultValue={editStateRef.current.paypalEmail}
+                  onChange={(e) => updateField("paypalEmail", e.target.value)}
                   placeholder="paypal"
                   className="w-[180px] h-8 text-sm"
                 />
@@ -319,10 +320,8 @@ export function CreatorsTable({
           if (editingUsername === c.username) {
             return (
               <Input
-                value={editState.notes}
-                onChange={(e) =>
-                  setEditState((s) => ({ ...s, notes: e.target.value }))
-                }
+                defaultValue={editStateRef.current.notes}
+                onChange={(e) => updateField("notes", e.target.value)}
                 placeholder="add note..."
                 className="w-[150px] h-8 text-sm"
               />
@@ -382,7 +381,7 @@ export function CreatorsTable({
         },
       },
     ],
-    [editingUsername, editState, isEditing, isRemoving, isToggling, onTogglePaid]
+    [editingUsername, isEditing, isRemoving, isToggling, onTogglePaid, updateField]
   )
 
   const table = useReactTable({
