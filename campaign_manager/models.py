@@ -47,6 +47,9 @@ class Campaign(Base):
     cobrand_comments = Column(Integer, default=0)
     cobrand_status = Column(String(50), default="")
 
+    # Completion tracking (none -> booked -> completed, cycles)
+    completion_status = Column(String(20), default="none")
+
     # Source tracking
     source = Column(String(20), default="manual")
 
@@ -97,6 +100,7 @@ class Campaign(Base):
             "cobrand_comments": self.cobrand_comments or 0,
             "cobrand_status": self.cobrand_status or "",
             "source": self.source or "manual",
+            "completion_status": self.completion_status or "none",
             "notion_page_id": self.notion_page_id or "",
             "insta_sound": self.insta_sound or "",
             "campaign_stage": self.campaign_stage or "",

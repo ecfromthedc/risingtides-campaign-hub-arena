@@ -7,9 +7,11 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table"
-import { useState, useMemo } from "react"
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { useState, useMemo, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { ArrowUpDown, ArrowUp, ArrowDown, Check } from "lucide-react"
 import type { CampaignSummary } from "@/lib/types"
+import { api } from "@/lib/api"
 import {
   Table,
   TableBody,
@@ -36,7 +38,75 @@ function formatCpm(value: number | null): string {
   return `$${value.toFixed(2)}`
 }
 
-const columns: ColumnDef<CampaignSummary>[] = [
+const COMPLETION_CYCLE: Record<string, CampaignSummary["completion_status"]> = {
+  none: "booked",
+  booked: "completed",
+  completed: "none",
+}
+
+function CompletionCell({
+  status,
+  onClick,
+}: {
+  status: CampaignSummary["completion_status"]
+  onClick: (e: React.MouseEvent) => void
+}) {
+  if (status === "none") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="size-5 rounded border border-[#d0d0d8] bg-white hover:border-[#999] transition-colors"
+        title="Mark booking complete"
+      />
+    )
+  }
+  if (status === "booked") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="size-5 rounded border border-[#999] bg-[#f0f0f5] flex items-center justify-center hover:border-[#666] transition-colors"
+        title="Booking complete — click to mark campaign wrapped"
+      >
+        <Check className="size-3.5 text-[#888]" />
+      </button>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="size-5 rounded border border-[#16a34a] bg-[#f0fdf4] flex items-center justify-center hover:border-[#15803d] transition-colors"
+      title="Campaign wrapped — click to reset"
+    >
+      <Check className="size-3.5 text-[#16a34a]" />
+    </button>
+  )
+}
+
+function buildColumns(
+  onToggleCompletion: (slug: string, current: CampaignSummary["completion_status"]) => void
+): ColumnDef<CampaignSummary>[] {
+  return [
+  {
+    id: "completion",
+    header: () => <span className="sr-only">Done</span>,
+    cell: ({ row }) => {
+      const status = row.original.completion_status || "none"
+      return (
+        <CompletionCell
+          status={status}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleCompletion(row.original.slug, status)
+          }}
+        />
+      )
+    },
+    size: 40,
+    enableSorting: false,
+  },
   {
     accessorKey: "title",
     header: ({ column }) => (
@@ -166,6 +236,7 @@ const columns: ColumnDef<CampaignSummary>[] = [
       (rowA.original.stats.cpm ?? 0) - (rowB.original.stats.cpm ?? 0),
   },
 ]
+}
 
 function SortableHeader({
   column,
@@ -225,8 +296,24 @@ interface CampaignsTableProps {
 
 export function CampaignsTable({ data }: CampaignsTableProps) {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [sortBy, setSortBy] = useState<SortOption>("start_date")
   const [sorting, setSorting] = useState<SortingState>([])
+
+  const handleToggleCompletion = useCallback(
+    (slug: string, current: CampaignSummary["completion_status"]) => {
+      const next = COMPLETION_CYCLE[current] || "none"
+      api.editCampaign(slug, { completion_status: next }).then(() => {
+        qc.invalidateQueries({ queryKey: ["campaigns"] })
+      })
+    },
+    [qc]
+  )
+
+  const columns = useMemo(
+    () => buildColumns(handleToggleCompletion),
+    [handleToggleCompletion]
+  )
 
   const sortedData = useMemo(() => sortCampaigns(data, sortBy), [data, sortBy])
 
@@ -270,6 +357,7 @@ export function CampaignsTable({ data }: CampaignsTableProps) {
                 <TableHead
                   key={header.id}
                   className="text-[#888] text-xs font-semibold uppercase tracking-[0.3px] px-4 py-3 border-b-2 border-[#e8e8ef]"
+                  style={header.column.id === "completion" ? { width: 40, minWidth: 40, maxWidth: 40 } : undefined}
                 >
                   {header.isPlaceholder
                     ? null

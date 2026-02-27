@@ -126,6 +126,7 @@ def save_campaign(slug: str, meta: Dict):
         c.cobrand_promotion_id = meta.get("cobrand_promotion_id", c.cobrand_promotion_id or "")
         c.cobrand_status = meta.get("cobrand_status", c.cobrand_status or "")
         c.source = meta.get("source", c.source or "manual")
+        c.completion_status = meta.get("completion_status", c.completion_status or "none")
         # Use None instead of "" so the unique constraint allows multiple unset values
         raw_notion_id = meta.get("notion_page_id", c.notion_page_id)
         c.notion_page_id = raw_notion_id if raw_notion_id else None

@@ -222,6 +222,7 @@ def _campaign_summary(c: Dict) -> Dict:
         "status": c["meta"].get("status", "active"),
         "budget": c["budget"],
         "stats": c["stats"],
+        "completion_status": c["meta"].get("completion_status", "none"),
         "creator_count": len([
             cr for cr in c["creators"]
             if cr.get("status", "active") != "removed"
@@ -365,6 +366,10 @@ def edit_campaign(slug: str):
             meta["budget"] = float(budget_raw)
         except (ValueError, TypeError):
             pass
+
+    completion_status = data.get("completion_status")
+    if completion_status in ("none", "booked", "completed"):
+        meta["completion_status"] = completion_status
 
     cobrand_link = (data.get("cobrand_link") or "").strip()
     meta["cobrand_link"] = cobrand_link
