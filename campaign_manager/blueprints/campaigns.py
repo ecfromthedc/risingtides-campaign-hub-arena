@@ -842,6 +842,10 @@ def add_creator(slug: str):
     if any(c.get("username") == username and c.get("status", "active") != "removed" for c in creators):
         return jsonify({"error": f"@{username} already exists."}), 409
 
+    # Remove any previously-removed entries for this username to avoid
+    # unique constraint violations on (campaign_id, username).
+    creators = [c for c in creators if not (c.get("username") == username and c.get("status") == "removed")]
+
     per_post = round(total_rate / posts_owed, 2) if posts_owed > 0 else 0.0
     creators.append({
         "username": username, "posts_owed": posts_owed,
