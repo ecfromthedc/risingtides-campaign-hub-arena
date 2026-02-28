@@ -852,10 +852,15 @@ def add_creator(slug: str):
         "status": "active", "notes": "",
     })
 
-    if _db.is_active():
-        _db.save_creators(slug, creators)
-    else:
-        save_creators(campaign_dir, creators)
+    try:
+        if _db.is_active():
+            _db.save_creators(slug, creators)
+        else:
+            save_creators(campaign_dir, creators)
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"DB error: {exc}"}), 500
 
     if paypal:
         remember_paypal(username, paypal)
