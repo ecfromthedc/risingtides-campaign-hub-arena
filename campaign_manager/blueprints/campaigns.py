@@ -826,7 +826,7 @@ def add_creator(slug: str):
 
     data = request.get_json(silent=True) or {}
 
-    username = (data.get("username") or "").strip().lstrip("@")
+    username = (data.get("username") or "").strip().lstrip("@").rstrip("/")
     posts_owed_raw = data.get("posts_owed", 0)
     total_rate_raw = data.get("total_rate", 0)
     paypal = (data.get("paypal_email") or "").strip()
@@ -981,6 +981,42 @@ def toggle_paid(slug: str, username: str):
 # -------------------------------------------------------------------
 @campaigns_bp.post("/api/campaign/<slug>/creator/<username>/remove")
 def remove_creator(slug: str, username: str):
+    if _db.is_active():
+        creators = _db.get_creators(slug)
+        campaign_dir = None
+    else:
+        campaign_dir = ACTIVE_DIR / slug
+        creators = load_creators(campaign_dir)
+
+    found = False
+    for c in creators:
+        if c.get("username") == username:
+            c["status"] = "removed"
+            found = True
+            break
+
+    if not found:
+        return jsonify({"error": f"Creator @{username} not found."}), 404
+
+    if _db.is_active():
+        _db.save_creators(slug, creators)
+    else:
+        save_creators(campaign_dir, creators)
+
+    return jsonify({"ok": True, "username": username, "message": f"Removed @{username}"})
+
+
+# -------------------------------------------------------------------
+# 10b. POST /api/campaign/<slug>/creator/remove  -- body-based remove
+#      (handles usernames with slashes or other URL-unsafe chars)
+# -------------------------------------------------------------------
+@campaigns_bp.post("/api/campaign/<slug>/creator/remove")
+def remove_creator_by_body(slug: str):
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "")
+    if not username:
+        return jsonify({"error": "Username is required."}), 400
+
     if _db.is_active():
         creators = _db.get_creators(slug)
         campaign_dir = None
