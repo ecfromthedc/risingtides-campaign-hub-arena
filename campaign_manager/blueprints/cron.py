@@ -84,12 +84,31 @@ def cron_diag():
         "config_token_prefix": config_token[:8] + "..." if config_token else "",
     }
 
-    # Try a minimal Apify call
+    # Try a minimal Apify call with raw output
     try:
-        from campaign_manager.services.apify_scraper import scrape_profiles
-        videos = scrape_profiles(["charlidamelio"], results_per_page=1)
-        result["apify_test"] = "ok"
-        result["apify_videos_returned"] = len(videos)
+        from apify_client import ApifyClient
+        token = env_token or config_token
+        client = ApifyClient(token)
+        run_input = {
+            "profiles": ["https://www.tiktok.com/@amourgazette"],
+            "resultsPerPage": 5,
+            "shouldDownloadCovers": False,
+            "shouldDownloadVideos": False,
+            "shouldDownloadSubtitles": False,
+        }
+        run = client.actor("clockworks/tiktok-scraper").call(run_input=run_input)
+        result["apify_run_status"] = run.get("status") if run else "no_run"
+        result["apify_run_id"] = run.get("id") if run else None
+
+        if run:
+            items = client.dataset(run["defaultDatasetId"]).list_items().items
+            result["apify_raw_count"] = len(items)
+            if items:
+                first = items[0]
+                result["apify_first_keys"] = sorted(first.keys())[:15]
+                result["apify_first_author"] = (first.get("authorMeta") or {}).get("name", "?")
+        else:
+            result["apify_raw_count"] = 0
     except Exception as e:
         result["apify_test"] = "failed"
         result["apify_error"] = str(e)
