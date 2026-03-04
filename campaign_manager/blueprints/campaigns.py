@@ -580,41 +580,64 @@ def _refresh_stats_inner(slug: str):
     if not sound_ids and not sound_keys:
         return jsonify({"error": "No sound ID or song/artist to match against."}), 400
 
-    from campaign_manager.services.apify_scraper import scrape_profiles
+    try:
+        from src.scrapers.master_tracker import (
+            scrape_tiktok_account,
+            extract_sound_ids_parallel,
+            match_video_to_sounds,
+        )
+    except ImportError as e:
+        return jsonify({"error": f"Could not import scraper: {e}"}), 500
 
-    # Scrape all creator accounts via Apify (single batched call)
+    # Scrape all creator accounts in parallel
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     all_videos: List[Dict] = []
+    accounts_scraped = 0
     errors: List[str] = []
 
     tiktok_creators = [c for c in active_creators if c.get("platform", "tiktok") == "tiktok"]
-    usernames = [c.get("username", "") for c in tiktok_creators if c.get("username")]
 
-    try:
-        all_videos = scrape_profiles(usernames, results_per_page=100)
-        accounts_scraped = len(set(v.get("account", "").lstrip("@") for v in all_videos if v.get("account")))
-    except Exception as e:
-        errors.append(f"Apify scrape failed: {e}")
-        accounts_scraped = 0
+    def _scrape_one(username):
+        """Scrape a single creator with retry."""
+        for attempt in range(2):
+            try:
+                videos = scrape_tiktok_account(
+                    f"@{username}",
+                    start_date=scrape_start,
+                    limit=500,
+                    use_cache=True,
+                )
+                return username, videos, None
+            except Exception as e:
+                if attempt == 0:
+                    continue  # retry once
+                return username, [], str(e)
+        return username, [], "max retries"
 
-    # No need for extract_sound_ids_parallel -- Apify already returns musicId
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(_scrape_one, c.get("username", "")): c
+            for c in tiktok_creators
+        }
+        for future in as_completed(futures):
+            username, videos, error = future.result()
+            if error:
+                errors.append(f"@{username}: {error}")
+            else:
+                all_videos.extend(videos)
+                accounts_scraped += 1
 
-    # Filter by start date if set
-    if scrape_start:
-        filtered = []
-        for v in all_videos:
-            ts = v.get("timestamp", "")
-            if ts and isinstance(ts, str):
-                try:
-                    vdt = datetime.fromisoformat(ts).date()
-                    if vdt < scrape_start:
-                        continue
-                except Exception:
-                    pass
-            filtered.append(v)
-        all_videos = filtered
+    # Extract sound IDs for videos that don't have them
+    tiktok_needing = [v for v in all_videos if not v.get("extracted_sound_id")]
+    if tiktok_needing:
+        try:
+            enhanced = extract_sound_ids_parallel(tiktok_needing, max_workers=10)
+            enhanced_dict = {v["url"]: v for v in enhanced}
+            all_videos = [enhanced_dict.get(v.get("url"), v) for v in all_videos]
+        except Exception:
+            pass
 
     # Match videos to campaign sound
-    # Fast path: direct musicId set lookup
     core_song_words: set = set()
     if song:
         core = _core_song_name(song)
@@ -624,73 +647,21 @@ def _refresh_stats_inner(slug: str):
         core_song_words |= {w for w in core.split() if len(w) > 2}
 
     matched: List[Dict] = []
-    discovered_sound_ids: List[str] = []
-    per_account: Dict[str, int] = {}
     for video in all_videos:
-        vid_music_id = video.get("music_id", "")
-        vid_account = video.get("account", "")
-
-        # Primary: direct musicId match (instant set lookup)
-        if vid_music_id and vid_music_id in sound_ids:
+        # Primary: use master_tracker's multi-strategy matching
+        if match_video_to_sounds(video, sound_ids, sound_keys):
             matched.append(video)
-            acct = vid_account.lstrip("@")
-            per_account[acct] = per_account.get(acct, 0) + 1
             continue
 
-        # Secondary: song+artist key matching
-        v_song_raw = video.get("song", "") or ""
-        v_artist_raw = video.get("artist", "") or ""
-        if v_song_raw and v_artist_raw:
-            v_key = f"{v_song_raw.lower().strip()} - {v_artist_raw.lower().strip()}"
-            if v_key in sound_keys:
-                matched.append(video)
-                acct = vid_account.lstrip("@")
-                per_account[acct] = per_account.get(acct, 0) + 1
-                continue
-
         # Fuzzy fallback: match if video song contains core words and artist matches
-        v_song = _core_song_name(v_song_raw)
-        v_artist = v_artist_raw.lower().strip()
+        v_song = _core_song_name(video.get("song", "") or "")
+        v_artist = (video.get("artist", "") or "").lower().strip()
         if core_song_words and v_song:
             v_words = set(v_song.split())
             overlap = core_song_words & v_words
             artist_match = artist and artist.lower().strip() in v_artist
             if overlap and artist_match:
                 matched.append(video)
-                acct = vid_account.lstrip("@")
-                per_account[acct] = per_account.get(acct, 0) + 1
-                continue
-
-    # Auto-discovery: for unmatched videos by campaign creators,
-    # if "original sound" by campaign artist with a valid musicId -> auto-add
-    if artist:
-        campaign_artist_lower = artist.lower().strip()
-        creator_usernames = {u.lower() for u in usernames}
-        matched_urls = {v.get("url") for v in matched}
-        for video in all_videos:
-            if video.get("url") in matched_urls:
-                continue
-            vid_account = (video.get("account", "").lstrip("@")).lower()
-            if vid_account not in creator_usernames:
-                continue
-            vid_music_id = video.get("music_id", "")
-            vid_song = (video.get("song", "") or "").lower().strip()
-            vid_artist = (video.get("artist", "") or "").lower().strip()
-            is_orig = video.get("is_original_sound", False) or vid_song.startswith("original sound")
-            if is_orig and vid_artist == campaign_artist_lower and vid_music_id and vid_music_id not in sound_ids:
-                matched.append(video)
-                discovered_sound_ids.append(vid_music_id)
-                acct = video.get("account", "").lstrip("@")
-                per_account[acct] = per_account.get(acct, 0) + 1
-
-    # Auto-add discovered sound IDs to additional_sounds
-    if discovered_sound_ids:
-        existing_additional = set(meta.get("additional_sounds", []))
-        new_sounds = [sid for sid in discovered_sound_ids if sid not in existing_additional and sid not in sound_ids]
-        if new_sounds:
-            updated_additional = list(existing_additional | set(new_sounds))
-            meta["additional_sounds"] = updated_additional
-            _save_meta(slug, meta, campaign_dir)
 
     # Merge with existing matched videos (keep old ones, add new)
     if _db.is_active():
@@ -760,8 +731,6 @@ def _refresh_stats_inner(slug: str):
         "videos_checked": len(all_videos),
         "new_matches": len(new_matches),
         "total_matches": len(all_matched),
-        "per_account": per_account,
-        "discovered_sound_ids": discovered_sound_ids,
     }
     if _db.is_active():
         _db.save_scrape_log(slug, scrape_log)
