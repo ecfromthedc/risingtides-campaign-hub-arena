@@ -30,7 +30,7 @@ function SongCard({ song }: { song: InternalSongResult }) {
         </div>
         <div className="text-right flex-shrink-0 ml-4">
           <div className="text-[18px] font-bold text-[#1a1a2e]">
-            {song.total_views.toLocaleString()}
+            {(song.total_views ?? 0).toLocaleString()}
           </div>
           <div className="text-[#888] text-[13px]">
             {song.videos.length} video{song.videos.length !== 1 ? "s" : ""}
@@ -40,7 +40,7 @@ function SongCard({ song }: { song: InternalSongResult }) {
 
       {/* Accounts */}
       <div className="mt-2 text-[12px] text-[#888]">
-        Accounts: {song.accounts.join(", ")}
+        Accounts: {(song.accounts ?? []).join(", ") || "—"}
       </div>
 
       {/* Video table */}

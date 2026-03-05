@@ -567,7 +567,18 @@ def get_internal_results() -> Dict:
             "total_videos": result.total_videos,
             "total_videos_unfiltered": result.total_videos_unfiltered,
             "unique_songs": result.unique_songs,
-            "songs": result.songs or [],
+            "songs": [
+                {
+                    "key": s.get("key", ""),
+                    "song": s.get("song", ""),
+                    "artist": s.get("artist", ""),
+                    "total_views": s.get("total_views", sum(v.get("views", 0) for v in s.get("videos", []))),
+                    "total_likes": s.get("total_likes", sum(v.get("likes", 0) for v in s.get("videos", []))),
+                    "accounts": s.get("accounts", sorted(set(v.get("account", "") for v in s.get("videos", [])))),
+                    "videos": s.get("videos", []),
+                }
+                for s in (result.songs or [])
+            ],
         }
 
 
