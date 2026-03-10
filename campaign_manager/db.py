@@ -55,6 +55,23 @@ def init(database_url: Optional[str] = None):
     except Exception:
         pass
 
+    # Add tracker columns if missing
+    try:
+        with _SessionLocal() as s:
+            s.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS tracker_campaign_id VARCHAR(100)"
+                )
+            )
+            s.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS tracker_url TEXT DEFAULT ''"
+                )
+            )
+            s.commit()
+    except Exception:
+        pass
+
     # Fix: null out empty notion_page_id values so unique constraint works
     try:
         with _SessionLocal() as s:
