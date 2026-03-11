@@ -1501,7 +1501,7 @@ def create_tracker(slug: str):
         return jsonify({"error": f"Failed to create tracker: {str(e)}"}), 502
 
     tracker_campaign_id = result.get("campaign", {}).get("id", "")
-    tracker_url = f"{tracker_base}/?campaign={tracker_campaign_id}" if tracker_base else ""
+    tracker_url = f"{tracker_base}/{tracker_campaign_id}" if tracker_base else ""
 
     # Save tracker ID back to campaign
     if _db.is_active():
