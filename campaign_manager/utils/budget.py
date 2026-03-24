@@ -24,7 +24,7 @@ def calc_stats(meta: Dict, creators: List[Dict]) -> Dict:
     budget_info = calc_budget(meta, creators)
     cpm = None
     if total_views > 0 and budget_info["booked"] > 0:
-        cpm = (budget_info["booked"] / total_views) * 1_000_000
+        cpm = (budget_info["booked"] / total_views) * 1_000
 
     return {
         "live_posts": live_posts,
