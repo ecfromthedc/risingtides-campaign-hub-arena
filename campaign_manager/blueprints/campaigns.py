@@ -1351,7 +1351,7 @@ def list_creators():
 
         if entry["total_views"] > 0:
             entry["avg_cpm"] = round(
-                (entry["total_spend"] / entry["total_views"]) * 1_000_000, 2
+                (entry["total_spend"] / entry["total_views"]) * 1_000, 2
             )
         else:
             entry["avg_cpm"] = None
@@ -1458,7 +1458,7 @@ def creator_profile(username: str):
 
     avg_cpm = None
     if total_views > 0:
-        avg_cpm = round((total_spend / total_views) * 1_000_000, 2)
+        avg_cpm = round((total_spend / total_views) * 1_000, 2)
 
     return jsonify({
         "username": username,
