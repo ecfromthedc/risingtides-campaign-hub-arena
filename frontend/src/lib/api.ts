@@ -19,7 +19,7 @@ import type {
   OutreachStatusResponse,
 } from "./types"
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5055"
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5055" : "")
 
 class ApiError extends Error {
   status: number

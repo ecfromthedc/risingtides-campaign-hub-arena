@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js 20 for frontend build
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install yt-dlp (latest version)
 RUN pip install --no-cache-dir yt-dlp
 
@@ -20,6 +25,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+
+# Build frontend
+RUN cd frontend && npm ci && npm run build
 
 # Create necessary directories
 RUN mkdir -p /app/data_volume/campaigns/active \

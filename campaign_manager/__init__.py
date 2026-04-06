@@ -1,13 +1,19 @@
 """Campaign Manager Flask application factory."""
-from flask import Flask
+import os
+from pathlib import Path
+
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 
 from campaign_manager.config import Config
 from campaign_manager import db
 
+# Frontend build directory (built by Vite into frontend/dist)
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
 
 def create_app(config=None):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
     app.config.from_object(Config)
     if config:
         app.config.update(config)
@@ -69,5 +75,17 @@ def create_app(config=None):
             _sched_log.info("Scheduler lock not acquired (another worker has it): %s", e)
         except Exception as e:
             _sched_log.error("Scheduler init failed: %s", e, exc_info=True)
+
+    # --- Serve frontend SPA from frontend/dist ---
+    if FRONTEND_DIST.is_dir():
+        @app.route("/", defaults={"path": ""})
+        @app.route("/<path:path>")
+        def serve_frontend(path):
+            # Serve static asset if it exists
+            full = FRONTEND_DIST / path
+            if path and full.is_file():
+                return send_from_directory(FRONTEND_DIST, path)
+            # SPA fallback: serve index.html for all other routes
+            return send_from_directory(FRONTEND_DIST, "index.html")
 
     return app
