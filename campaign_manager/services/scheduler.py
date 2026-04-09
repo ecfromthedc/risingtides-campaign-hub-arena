@@ -240,13 +240,36 @@ def run_campaign_refresh():
                     if uname:
                         all_usernames.add(uname)
 
+        # Bound the pre-scrape by the earliest active campaign start_date.
+        # Previously this passed start_date=None which pulled full video history
+        # (up to 500 videos per creator) every run -- way more than needed and
+        # risked TikTok rate limiting. Now yt-dlp terminates early once it
+        # walks past the oldest active campaign's start.
+        earliest_start = None
+        for meta in campaigns:
+            start_str = (meta.get("start_date") or "").strip()
+            if not start_str:
+                continue
+            try:
+                d = datetime.strptime(start_str, "%Y-%m-%d")
+            except ValueError:
+                continue
+            if earliest_start is None or d < earliest_start:
+                earliest_start = d
+
         # Pre-scrape all unique creators + extract sound IDs
         shared_videos = {}  # username -> [videos]
         if all_usernames:
-            log.info("CRON: pre-scraping %d unique creators across %d campaigns",
-                     len(all_usernames), campaigns_total)
+            log.info(
+                "CRON: pre-scraping %d unique creators across %d campaigns "
+                "(earliest start_date=%s)",
+                len(all_usernames), campaigns_total,
+                earliest_start.date().isoformat() if earliest_start else "none",
+            )
             all_scraped, _, _ = _scrape_creator_accounts(
-                list(all_usernames), start_date=None, max_workers=5
+                list(all_usernames),
+                start_date=earliest_start,
+                max_workers=5,
             )
             # Extract sound IDs for all videos at once (much more efficient)
             all_scraped = _enhance_sound_ids(all_scraped, max_workers=10)
@@ -416,18 +439,34 @@ def _refresh_single_campaign(slug: str, meta: dict, shared_videos: dict = None) 
 
 
 def _filter_by_date(videos, start_date):
-    """Filter videos to only those on or after start_date."""
+    """Filter videos to only those on or after start_date.
+
+    Videos with missing or malformed timestamps are EXCLUDED (not silently
+    passed through). Previously, a video with no timestamp would bypass the
+    date check entirely and land in the matched set regardless of campaign
+    start_date. This closed that backdoor -- bad metadata now fails safe
+    (excluded) instead of fail-open (included).
+    """
     filtered = []
+    excluded_no_ts = 0
     for v in videos:
         ts = v.get("timestamp", "")
-        if ts and isinstance(ts, str):
-            try:
-                vdt = datetime.fromisoformat(ts).date()
-                if vdt < start_date:
-                    continue
-            except Exception:
-                pass
+        if not ts or not isinstance(ts, str):
+            excluded_no_ts += 1
+            continue
+        try:
+            vdt = datetime.fromisoformat(ts).date()
+        except Exception:
+            excluded_no_ts += 1
+            continue
+        if vdt < start_date:
+            continue
         filtered.append(v)
+    if excluded_no_ts:
+        log.info(
+            "CRON: _filter_by_date excluded %d video(s) with missing/bad timestamps",
+            excluded_no_ts,
+        )
     return filtered
 
 
