@@ -15,6 +15,9 @@ export const keys = {
   internalScrapeStatus: ["internal", "scrape-status"] as const,
   internalCreator: (username: string) =>
     ["internal", "creator", username] as const,
+  internalGroups: ["internal", "groups"] as const,
+  internalGroup: (slug: string) => ["internal", "groups", slug] as const,
+  internalGroupStats: (slug: string) => ["internal", "groups", slug, "stats"] as const,
   inbox: (status?: string) => ["inbox", status ?? "all"] as const,
   paypal: (username: string) => ["paypal", username] as const,
   network: ["network"] as const,
@@ -22,6 +25,7 @@ export const keys = {
   outreachStatus: (slug: string) => ["outreach", slug, "status"] as const,
   trackers: ["trackers"] as const,
   trackerGroups: ["tracker-groups"] as const,
+  shareTokens: ["share-tokens"] as const,
 }
 
 // --- Campaigns ---
@@ -311,6 +315,29 @@ export function useInternalCreator(username: string) {
   })
 }
 
+export function useInternalGroups() {
+  return useQuery({
+    queryKey: keys.internalGroups,
+    queryFn: api.getInternalGroups,
+  })
+}
+
+export function useInternalGroup(slug: string) {
+  return useQuery({
+    queryKey: keys.internalGroup(slug),
+    queryFn: () => api.getInternalGroup(slug),
+    enabled: !!slug,
+  })
+}
+
+export function useInternalGroupStats(slug: string, days = 30) {
+  return useQuery({
+    queryKey: keys.internalGroupStats(slug),
+    queryFn: () => api.getInternalGroupStats(slug, days),
+    enabled: !!slug,
+  })
+}
+
 // --- Inbox ---
 
 export function useInbox(status?: string) {
@@ -445,5 +472,31 @@ export function useConfirmOutreach(slug: string) {
       qc.invalidateQueries({ queryKey: keys.campaign(slug) })
       qc.invalidateQueries({ queryKey: keys.campaigns })
     },
+  })
+}
+
+// --- Share Tokens ---
+
+export function useCreateShareToken(slug: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { label?: string; expires_days?: number }) =>
+      api.createShareToken(slug, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.shareTokens }),
+  })
+}
+
+export function useShareTokens() {
+  return useQuery({
+    queryKey: keys.shareTokens,
+    queryFn: api.listShareTokens,
+  })
+}
+
+export function useRevokeShareToken() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (token: string) => api.revokeShareToken(token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.shareTokens }),
   })
 }

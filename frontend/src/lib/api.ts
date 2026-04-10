@@ -6,6 +6,9 @@ import type {
   CreatorSummary,
   CreatorProfile,
   InternalCreator,
+  InternalGroup,
+  InternalGroupDetail,
+  InternalGroupStats,
   InternalScrapeResults,
   InternalSongResult,
   ScrapeStatus,
@@ -19,6 +22,7 @@ import type {
   OutreachStatusResponse,
   Tracker,
   TrackerGroup,
+  ShareToken,
 } from "./types"
 
 const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5055" : "")
@@ -188,6 +192,15 @@ export const api = {
       songs: InternalSongResult[]
     }>(`/api/internal/creator/${username}`),
 
+  getInternalGroups: () =>
+    request<InternalGroup[]>("/api/internal/groups"),
+
+  getInternalGroup: (slug: string) =>
+    request<InternalGroupDetail>(`/api/internal/groups/${slug}`),
+
+  getInternalGroupStats: (slug: string, days = 30) =>
+    request<InternalGroupStats>(`/api/internal/groups/${slug}/stats?days=${days}`),
+
   // Inbox
   getInbox: (status?: string) =>
     request<InboxItem[]>(
@@ -313,6 +326,19 @@ export const api = {
 
   deleteTrackerGroup: (id: number) =>
     request<ApiOk>(`/api/tracker-groups/${id}`, { method: "DELETE" }),
+
+  // Share Tokens
+  createShareToken: (slug: string, data: { label?: string; expires_days?: number }) =>
+    request<{ ok: boolean; token: ShareToken; url: string }>(`/api/campaign/${slug}/share-token`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  listShareTokens: () =>
+    request<ShareToken[]>("/api/share-tokens"),
+
+  revokeShareToken: (token: string) =>
+    request<ApiOk>(`/api/share-token/${token}`, { method: "DELETE" }),
 }
 
 export { ApiError }

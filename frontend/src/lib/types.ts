@@ -126,6 +126,30 @@ export interface InternalCreator {
   total_views: number
 }
 
+export interface InternalGroup {
+  id: number
+  slug: string
+  title: string
+  kind: string
+  sort_order: number
+  member_count: number
+  created_at: string
+}
+
+export interface InternalGroupDetail extends InternalGroup {
+  members: string[]
+}
+
+export interface InternalGroupStats {
+  group: InternalGroup
+  days: number
+  total_posts: number
+  total_views: number
+  total_likes: number
+  creators: { username: string; posts: number; views: number; likes: number }[]
+  top_songs: { song: string; artist: string; posts: number; views: number }[]
+}
+
 export interface InternalVideo {
   url: string
   song: string
@@ -300,6 +324,69 @@ export interface OutreachResponse {
 export interface OutreachStatusResponse {
   messages: OutreachMessage[]
   counts: Record<string, number>
+}
+
+// Public Dashboard types
+export interface PublicStats {
+  total_views: number
+  total_likes: number
+  total_shares: number
+  total_comments: number
+  engagement_pct: number
+  live_post_count: number
+}
+
+export interface PublicCreator {
+  username: string
+  profile_pic_url: string
+  posts_done: number
+  total_views: number
+}
+
+export interface PublicPost {
+  url: string
+  thumbnail_url: string
+  account: string
+  views: number
+  likes: number
+  shares: number
+  comments: number
+  upload_date: string
+  platform: string
+  round: string
+}
+
+export interface StatsHistoryPoint {
+  date: string
+  views: number
+  likes: number
+  posts: number
+}
+
+export interface PublicDashboardData {
+  title: string
+  artist: string
+  song: string
+  created_at: string
+  rounds: string[]
+  stats: PublicStats
+  creators: PublicCreator[]
+  posts: PublicPost[]
+  stats_history: StatsHistoryPoint[]
+}
+
+export interface ShareToken {
+  id: number
+  campaign_id: number | null
+  token: string
+  label: string
+  campaign_slugs: string[]
+  round_filter: string
+  created_at: string
+  expires_at: string | null
+  is_active: boolean
+  last_accessed: string | null
+  access_count: number
 }
 
 // API response wrappers
