@@ -20,19 +20,28 @@ class TidesTrackerError(Exception):
         self.status_code = status_code
 
 
+# Pinned to the canonical TidesTracker domain so the integration can't
+# silently break when a Vercel subdomain alias drifts to an old build.
+# Env var overrides only for dev/staging.
+TIDESTRACKER_PUBLIC_URL = "https://risingtides-tracker.com/"
+TIDESTRACKER_DEFAULT_API = "https://risingtides-tracker.com/api"
+
+
 def _config() -> Tuple[str, str, str]:
-    api = current_app.config.get("TIDESTRACKER_API_URL", "")
+    api = current_app.config.get("TIDESTRACKER_API_URL", "") or TIDESTRACKER_DEFAULT_API
     key = current_app.config.get("TIDESTRACKER_SERVICE_KEY", "")
-    base = current_app.config.get("TIDESTRACKER_BASE_URL", "")
-    if not api or not key:
+    base = current_app.config.get("TIDESTRACKER_BASE_URL", "") or TIDESTRACKER_PUBLIC_URL
+    if not key:
         raise TidesTrackerError(
-            "TidesTracker not configured. Set TIDESTRACKER_API_URL and TIDESTRACKER_SERVICE_KEY.",
+            "TidesTracker not configured. Set TIDESTRACKER_SERVICE_KEY.",
             status_code=500,
         )
+    # Force the canonical domain even if a stale env var still points at the
+    # raw Vercel subdomain — that subdomain has historically pinned to old
+    # deployments and missed feature deploys.
+    if "frontend-tidestracker.vercel.app" in api:
+        api = TIDESTRACKER_DEFAULT_API
     return api, key, base
-
-
-TIDESTRACKER_PUBLIC_URL = "https://risingtides-tracker.com/"
 
 
 def tracker_url_for(tracker_id: str) -> str:
