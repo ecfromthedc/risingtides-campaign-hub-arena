@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { ExternalLink, Plus, Loader2, Activity } from "lucide-react"
+import { ExternalLink, Plus, Loader2, Activity, Copy, Check } from "lucide-react"
 import {
   useTrackers,
   useTrackerGroups,
@@ -113,6 +113,17 @@ export default function TidesTrackers() {
     const gid = value === NO_GROUP ? null : Number(value)
     if (gid === tracker.group_id) return
     setTrackerGroup.mutate({ trackerId: tracker.id, groupId: gid })
+  }
+
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  function handleCopy(tracker: Tracker) {
+    if (!tracker.tracker_url) return
+    navigator.clipboard.writeText(tracker.tracker_url).then(() => {
+      setCopiedId(tracker.id)
+      window.setTimeout(() => {
+        setCopiedId((current) => (current === tracker.id ? null : current))
+      }, 1500)
+    })
   }
 
   return (
@@ -310,15 +321,29 @@ export default function TidesTrackers() {
                   </TableCell>
                   <TableCell>
                     {t.tracker_url ? (
-                      <a
-                        href={t.tracker_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[13px] text-purple-600 hover:underline inline-flex items-center gap-1"
-                      >
-                        Open
-                        <ExternalLink className="size-3" />
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={t.tracker_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[13px] text-purple-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          Open
+                          <ExternalLink className="size-3" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(t)}
+                          title={copiedId === t.id ? "Copied!" : "Copy tracker link"}
+                          className="text-[#888] hover:text-purple-600 transition-colors"
+                        >
+                          {copiedId === t.id ? (
+                            <Check className="size-3.5 text-green-600" />
+                          ) : (
+                            <Copy className="size-3.5" />
+                          )}
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-[#999] text-[13px]">-</span>
                     )}

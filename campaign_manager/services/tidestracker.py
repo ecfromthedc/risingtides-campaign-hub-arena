@@ -45,15 +45,15 @@ def _config() -> Tuple[str, str, str]:
 
 
 def tracker_url_for(tracker_id: str) -> str:
-    """Public URL for the TidesTracker dashboard.
+    """Public deep link to a specific tracker.
 
-    TidesTracker doesn't have per-campaign deep links — selection happens
-    inside the dashboard UI — so every tracker links to the same canonical
-    dashboard URL.
+    TidesTracker exposes auth-free public dashboards at /<uuid>
+    (see api/public/[campaignId].ts on the TidesTracker side), so the
+    UUID itself is the access token.
     """
     if not tracker_id:
         return ""
-    return TIDESTRACKER_PUBLIC_URL
+    return f"{TIDESTRACKER_PUBLIC_URL.rstrip('/')}/{tracker_id}"
 
 
 def create_tracker_campaign(
