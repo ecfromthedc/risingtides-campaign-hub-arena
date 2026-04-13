@@ -28,6 +28,11 @@ def build_sound_sets(meta: dict) -> Tuple[Set[str], Set[str], Set[str]]:
     """Build matching sets from campaign metadata.
 
     Returns (sound_ids, sound_keys, core_song_words).
+
+    When tt_artist_label and tt_track_name are set on a campaign, those
+    are used for matching instead of the regular artist/song fields. This
+    is critical for original sounds where TikTok labels the artist
+    differently (e.g. "Music for the Soul" instead of "Sam Barber").
     """
     sound_ids: Set[str] = set()
     if meta.get("sound_id"):
@@ -36,14 +41,24 @@ def build_sound_sets(meta: dict) -> Tuple[Set[str], Set[str], Set[str]]:
         if sid:
             sound_ids.add(str(sid))
 
+    # Use TikTok-specific labels when available, fall back to campaign fields
     artist = meta.get("artist", "")
     song = meta.get("song", "")
+    tt_artist = (meta.get("tt_artist_label") or "").strip()
+    tt_track = (meta.get("tt_track_name") or "").strip()
 
     sound_keys: Set[str] = set()
+    # Always add the campaign artist/song key
     if song and artist:
         sound_keys.add(f"{song.lower().strip()} - {artist.lower().strip()}")
         core = core_song_name(song)
         sound_keys.add(f"{core} - {artist.lower().strip()}")
+
+    # If TikTok labels are set, add those as matching keys too
+    if tt_track and tt_artist:
+        sound_keys.add(f"{tt_track.lower().strip()} - {tt_artist.lower().strip()}")
+        core_tt = core_song_name(tt_track)
+        sound_keys.add(f"{core_tt} - {tt_artist.lower().strip()}")
 
     core_song_words: Set[str] = set()
     if song:
@@ -60,12 +75,14 @@ def match_videos(
     core_song_words: Set[str],
     artist: str,
     match_fn=None,
+    tt_artist_label: str = "",
 ) -> List[Dict]:
     """Match videos to campaign sounds using multi-strategy matching.
 
     Strategies (in order):
     1. master_tracker's match_video_to_sounds (sound_id + song+artist key)
-    2. Fuzzy: core word overlap + artist name match
+    2. Fuzzy: core word overlap + artist name match (checks both campaign
+       artist and tt_artist_label)
 
     Args:
         all_videos: Scraped video dicts.
@@ -74,9 +91,16 @@ def match_videos(
         core_song_words: Core words from song title (len > 2).
         artist: Campaign artist name.
         match_fn: Optional match_video_to_sounds function from master_tracker.
+        tt_artist_label: TikTok-specific artist label for original sounds.
     """
     matched = []
-    artist_lower = artist.lower().strip() if artist else ""
+
+    # Build set of artist name variants to check against
+    artist_variants: Set[str] = set()
+    if artist:
+        artist_variants.add(artist.lower().strip())
+    if tt_artist_label:
+        artist_variants.add(tt_artist_label.lower().strip())
 
     for video in all_videos:
         # Strategy 1: multi-strategy matching from master_tracker
@@ -97,7 +121,7 @@ def match_videos(
         if core_song_words and v_song:
             v_words = set(core_song_name(v_song).split())
             overlap = core_song_words & v_words
-            if overlap and artist_lower and artist_lower in v_artist:
+            if overlap and artist_variants and v_artist in artist_variants:
                 matched.append(video)
 
     return matched
@@ -109,18 +133,30 @@ def discover_original_sounds(
     sound_ids: Set[str],
     usernames: List[str],
     artist: str,
+    tt_artist_label: str = "",
 ) -> Tuple[List[Dict], List[str]]:
     """Auto-discover original sound IDs from campaign creator videos.
 
     When a creator posts using "original sound" but the artist matches,
     capture the sound ID and add the video to matches.
 
+    Checks against both the campaign artist name AND the tt_artist_label
+    (TikTok-specific artist name) when available. This handles cases
+    where TikTok labels the artist differently from the real name
+    (e.g. "Music for the Soul" instead of "Sam Barber").
+
     Returns (additional_matched, discovered_sound_ids).
     """
-    if not artist:
+    if not artist and not tt_artist_label:
         return [], []
 
-    campaign_artist_lower = artist.lower().strip()
+    # Build the set of artist names to match against
+    artist_variants: Set[str] = set()
+    if artist:
+        artist_variants.add(artist.lower().strip())
+    if tt_artist_label:
+        artist_variants.add(tt_artist_label.lower().strip())
+
     creator_set = {u.lower() for u in usernames}
     matched_urls = {v.get("url") for v in matched}
 
@@ -139,7 +175,7 @@ def discover_original_sounds(
         vid_music_id = video.get("extracted_sound_id") or video.get("music_id", "")
         is_orig = video.get("is_original_sound", False) or vid_song.startswith("original sound")
 
-        if is_orig and vid_artist == campaign_artist_lower and vid_music_id and vid_music_id not in sound_ids:
+        if is_orig and vid_artist in artist_variants and vid_music_id and vid_music_id not in sound_ids:
             additional.append(video)
             discovered.append(vid_music_id)
             sound_ids.add(vid_music_id)

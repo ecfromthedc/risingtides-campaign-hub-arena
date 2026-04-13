@@ -386,11 +386,14 @@ def _refresh_single_campaign(slug: str, meta: dict, shared_videos: dict = None) 
             pass
 
     # Step 3: Match using shared multi-strategy logic
-    matched = match_videos(all_videos, sound_ids, sound_keys, core_song_words, artist, match_fn=match_video_to_sounds)
+    tt_artist_label = meta.get("tt_artist_label", "")
+    matched = match_videos(all_videos, sound_ids, sound_keys, core_song_words, artist,
+                           match_fn=match_video_to_sounds, tt_artist_label=tt_artist_label)
 
     # Step 4: Auto-discover original sounds from campaign creators
     extra_matched, discovered_sound_ids = discover_original_sounds(
-        all_videos, matched, sound_ids, usernames, artist
+        all_videos, matched, sound_ids, usernames, artist,
+        tt_artist_label=tt_artist_label,
     )
     matched.extend(extra_matched)
 
@@ -429,6 +432,25 @@ def _refresh_single_campaign(slug: str, meta: dict, shared_videos: dict = None) 
         "new_matches": new_count,
         "total_matches": len(all_matched),
     })
+
+    # Save daily stats snapshot for dashboard time-series
+    try:
+        from datetime import date as date_type
+        cid = _db.get_campaign_id(slug)
+        if cid:
+            total_shares = sum(v.get("shares", 0) or 0 for v in all_matched)
+            total_comments = sum(v.get("comments", 0) or 0 for v in all_matched)
+            _db.save_stats_snapshot(
+                campaign_id=cid,
+                snapshot_date=date_type.today(),
+                views=total_views,
+                likes=total_likes,
+                shares=total_shares,
+                comments=total_comments,
+                post_count=len(all_matched),
+            )
+    except Exception as e:
+        log.warning("CRON: stats snapshot failed for %s: %s", slug, e)
 
     return {
         "new_matches": new_count,
