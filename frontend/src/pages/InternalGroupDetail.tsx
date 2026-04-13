@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
 import {
   useInternalGroup,
@@ -10,20 +10,41 @@ import {
 import { ScrapeProgress } from "@/components/internal/ScrapeProgress"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, ArrowLeft } from "lucide-react"
+import { Loader2, ArrowLeft, X, Plus } from "lucide-react"
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function daysAgoStr(n: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().slice(0, 10)
+}
+
+function daysBetween(start: string, end: string): number {
+  const s = new Date(start)
+  const e = new Date(end)
+  return Math.max(1, Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)))
+}
 
 export default function InternalGroupDetail() {
   const { slug } = useParams<{ slug: string }>()
   const { data: group, isLoading: groupLoading } = useInternalGroup(slug || "")
   const { data: allCreators } = useInternalCreators()
-  const [days, setDays] = useState(30)
+
+  const [startDate, setStartDate] = useState(daysAgoStr(30))
+  const [endDate, setEndDate] = useState(todayStr())
+  const [memberInput, setMemberInput] = useState("")
+
+  const days = useMemo(() => daysBetween(startDate, endDate), [startDate, endDate])
   const { data: stats, isLoading: statsLoading } = useInternalGroupStats(slug || "", days)
+
   const scrape = useTriggerGroupScrape()
   const { data: scrapeStatus } = useInternalScrapeStatus(true)
   const [scraping, setScraping] = useState(false)
   const isRunning = scraping || !!scrapeStatus?.running
 
-  // Build a map of username -> creator data for video/view counts
   const creatorMap = new Map<string, { total_videos: number; total_views: number }>()
   for (const c of allCreators || []) {
     creatorMap.set(c.username.toLowerCase(), c)
@@ -31,10 +52,40 @@ export default function InternalGroupDetail() {
 
   function handleScrapeGroup() {
     setScraping(true)
-    scrape.mutate({ group: slug })
+    scrape.mutate({ group: slug, start_date: startDate, end_date: endDate })
   }
 
   const handleScrapeComplete = useCallback(() => setScraping(false), [])
+
+  async function handleAddMembers(e: React.FormEvent) {
+    e.preventDefault()
+    const value = memberInput.trim()
+    if (!value || !group) return
+    try {
+      await fetch(`/api/internal/groups/${group.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: value }),
+      })
+      setMemberInput("")
+      window.location.reload()
+    } catch {
+      // Silently handle — user can retry
+    }
+  }
+
+  async function handleRemoveMember(username: string) {
+    if (!group) return
+    if (!confirm(`Remove @${username} from ${group.title}?`)) return
+    try {
+      await fetch(`/api/internal/groups/${group.id}/members/${username}`, {
+        method: "DELETE",
+      })
+      window.location.reload()
+    } catch {
+      // Silently handle — user can retry
+    }
+  }
 
   if (groupLoading) {
     return (
@@ -49,8 +100,6 @@ export default function InternalGroupDetail() {
   }
 
   const members = group.members || []
-
-  // Sort members by stats views if available
   const sortedMembers = [...members].sort((a, b) => {
     const aStats = stats?.creators?.find((c) => c.username === a.toLowerCase())
     const bStats = stats?.creators?.find((c) => c.username === b.toLowerCase())
@@ -70,27 +119,28 @@ export default function InternalGroupDetail() {
             {group.member_count} accounts &middot; {group.kind}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-[13px] text-[#666]">Last</label>
+        <div className="flex flex-wrap items-center gap-2">
           <Input
-            type="number"
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            min={1}
-            max={365}
-            className="w-[60px] text-center h-8 text-sm"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-[145px] h-8 text-sm"
           />
-          <label className="text-[13px] text-[#666]">days</label>
+          <span className="text-[#888] text-sm">to</span>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-[145px] h-8 text-sm"
+          />
           <Button
             onClick={handleScrapeGroup}
             className="bg-[#0b62d6] hover:bg-[#0951b5] text-white"
             disabled={isRunning}
+            size="sm"
           >
             {isRunning ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Scraping...
-              </>
+              <><Loader2 className="size-3.5 animate-spin" /> Scraping...</>
             ) : (
               "Scrape Group"
             )}
@@ -98,7 +148,6 @@ export default function InternalGroupDetail() {
         </div>
       </div>
 
-      {/* Scrape progress */}
       <ScrapeProgress enabled={isRunning} onComplete={handleScrapeComplete} />
 
       {/* Stat cards */}
@@ -110,7 +159,7 @@ export default function InternalGroupDetail() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
           {[
             { label: "Accounts", value: group.member_count.toString() },
-            { label: `Posts (${days}d)`, value: stats.total_posts.toString() },
+            { label: "Posts", value: stats.total_posts.toString() },
             { label: "Total Views", value: stats.total_views.toLocaleString() },
             { label: "Total Likes", value: stats.total_likes.toLocaleString() },
           ].map((card) => (
@@ -122,6 +171,20 @@ export default function InternalGroupDetail() {
         </div>
       ) : null}
 
+      {/* Add members form */}
+      <form onSubmit={handleAddMembers} className="mb-4 flex gap-2">
+        <Input
+          type="text"
+          value={memberInput}
+          onChange={(e) => setMemberInput(e.target.value)}
+          placeholder="Add members (@username, comma separated)"
+          className="flex-1 text-sm h-9"
+        />
+        <Button type="submit" size="sm" className="bg-[#0b62d6] hover:bg-[#0951b5] text-white h-9 px-4">
+          <Plus className="size-3.5" /> Add
+        </Button>
+      </form>
+
       {/* Creators table */}
       <div className="bg-white border border-[#e8e8ef] rounded-[10px] overflow-hidden mb-5">
         <div className="px-4 py-3 border-b border-[#e8e8ef]">
@@ -131,27 +194,36 @@ export default function InternalGroupDetail() {
           <thead>
             <tr className="border-b border-[#e8e8ef] bg-[#f8f8fc]">
               <th className="text-left px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">Creator</th>
-              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">Posts ({days}d)</th>
-              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">Views ({days}d)</th>
-              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">Likes ({days}d)</th>
-              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">All-time Videos</th>
+              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">Posts</th>
+              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">Views</th>
+              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">Likes</th>
+              <th className="text-right px-4 py-2.5 text-[12px] text-[#888] font-semibold uppercase tracking-wide">All-time</th>
+              <th className="w-10"></th>
             </tr>
           </thead>
           <tbody>
             {sortedMembers.map((username) => {
-              const creatorStats = stats?.creators?.find((c) => c.username === username.toLowerCase())
+              const cStats = stats?.creators?.find((c) => c.username === username.toLowerCase())
               const allTime = creatorMap.get(username.toLowerCase())
               return (
                 <tr key={username} className="border-b border-[#f0f0f5] last:border-b-0 hover:bg-[#f8f8fc]">
                   <td className="px-4 py-2.5">
-                    <Link to={`/internal/${username}`} className="text-[#0b62d6] hover:underline">
-                      @{username}
-                    </Link>
+                    <Link to={`/internal/${username}`} className="text-[#0b62d6] hover:underline">@{username}</Link>
                   </td>
-                  <td className="px-4 py-2.5 text-right text-[#666]">{creatorStats?.posts ?? 0}</td>
-                  <td className="px-4 py-2.5 text-right text-[#666]">{(creatorStats?.views ?? 0).toLocaleString()}</td>
-                  <td className="px-4 py-2.5 text-right text-[#666]">{(creatorStats?.likes ?? 0).toLocaleString()}</td>
-                  <td className="px-4 py-2.5 text-right text-[#444]">{allTime?.total_videos ?? 0}</td>
+                  <td className="px-4 py-2.5 text-right text-[#666]">{cStats?.posts ?? 0}</td>
+                  <td className="px-4 py-2.5 text-right text-[#666]">{(cStats?.views ?? 0).toLocaleString()}</td>
+                  <td className="px-4 py-2.5 text-right text-[#666]">{(cStats?.likes ?? 0).toLocaleString()}</td>
+                  <td className="px-4 py-2.5 text-right text-[#444]">{allTime?.total_videos ?? 0} videos</td>
+                  <td className="px-2 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMember(username)}
+                      className="text-red-400 hover:text-red-600 p-1"
+                      title="Remove from group"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </td>
                 </tr>
               )
             })}
@@ -163,7 +235,7 @@ export default function InternalGroupDetail() {
       {stats?.top_songs && stats.top_songs.length > 0 && (
         <div className="bg-white border border-[#e8e8ef] rounded-[10px] overflow-hidden">
           <div className="px-4 py-3 border-b border-[#e8e8ef]">
-            <h3 className="text-[15px] font-semibold">Top Songs ({days}d)</h3>
+            <h3 className="text-[15px] font-semibold">Top Songs</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
