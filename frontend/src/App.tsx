@@ -12,6 +12,7 @@ import NetworkCreators from "./pages/NetworkCreators"
 import CampaignOutreach from "./pages/CampaignOutreach"
 import TidesTrackers from "./pages/TidesTrackers"
 import InternalGroupDetail from "./pages/InternalGroupDetail"
+import InternalScrapeView from "./pages/InternalScrapeView"
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/creators" element={<CreatorDatabase />} />
           <Route path="/creators/:username" element={<CreatorProfilePage />} />
           <Route path="/internal" element={<InternalTikTok />} />
+          <Route path="/internal/scrape/:category" element={<InternalScrapeView />} />
           <Route path="/internal/group/:slug" element={<InternalGroupDetail />} />
           <Route path="/internal/:username" element={<InternalCreatorDetail />} />
           <Route path="/inbox" element={<SlackInbox />} />

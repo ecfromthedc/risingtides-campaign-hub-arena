@@ -1,16 +1,12 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { Link } from "react-router-dom"
 import {
   useInternalCreators,
   useInternalGroups,
   useInternalGroupStats,
-  useTriggerInternalScrape,
-  useTriggerGroupScrape,
-  useInternalScrapeStatus,
   useAddInternalCreators,
   useRemoveInternalCreator,
 } from "@/lib/queries"
-import { ScrapeProgress } from "@/components/internal/ScrapeProgress"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, ChevronRight, X, Plus, Trash2 } from "lucide-react"
@@ -83,53 +79,28 @@ function GroupStatsCard({ group, days }: { group: InternalGroup; days: number })
 function ScrapeCard({
   title,
   count,
-  onScrape,
-  isPending,
-  isRunning,
+  linkTo,
 }: {
   title: string
   count: number
-  onScrape: (startDate: string, endDate: string) => void
-  isPending: boolean
-  isRunning: boolean
+  linkTo: string
 }) {
-  const [startDate, setStartDate] = useState(daysAgoStr(30))
-  const [endDate, setEndDate] = useState(todayStr())
-
   return (
-    <div className="bg-white border border-[#e8e8ef] rounded-[10px] p-4">
+    <Link
+      to={linkTo}
+      className="block bg-white border border-[#e8e8ef] rounded-[10px] p-4 hover:border-[#0b62d6]/40 hover:shadow-sm transition-all"
+    >
       <div className="text-[14px] font-semibold text-[#1a1a2e] mb-1">{title}</div>
       <div className="text-[12px] text-[#888] mb-2">{count} accounts</div>
-      <div className="flex items-center gap-1.5 mb-2">
-        <Input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="flex-1 h-7 text-xs px-1.5"
-        />
-        <span className="text-[#888] text-xs">to</span>
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="flex-1 h-7 text-xs px-1.5"
-        />
+      <div className="text-[13px] text-[#0b62d6] font-medium">
+        Scrape &amp; View Links →
       </div>
-      <Button
-        onClick={() => onScrape(startDate, endDate)}
-        disabled={isPending || isRunning}
-        className="w-full bg-[#0b62d6] hover:bg-[#0951b5] text-white text-sm"
-        size="sm"
-      >
-        {isPending ? <Loader2 className="size-3.5 animate-spin" /> : `Scrape ${title}`}
-      </Button>
-    </div>
+    </Link>
   )
 }
 
 export default function InternalTikTok() {
   const [tab, setTab] = useState<"stats" | "accounts" | "groups">("stats")
-  const [scraping, setScraping] = useState(false)
   const [addInput, setAddInput] = useState("")
   const [newGroupSlug, setNewGroupSlug] = useState("")
   const [newGroupTitle, setNewGroupTitle] = useState("")
@@ -142,14 +113,8 @@ export default function InternalTikTok() {
 
   const { data: groups, isLoading: groupsLoading } = useInternalGroups()
   const { data: creators, isLoading: creatorsLoading } = useInternalCreators()
-  const triggerScrape = useTriggerInternalScrape()
-  const triggerGroupScrape = useTriggerGroupScrape()
   const addCreators = useAddInternalCreators()
   const removeCreator = useRemoveInternalCreator()
-  const { data: scrapeStatus } = useInternalScrapeStatus(true)
-  const isRunning = scraping || !!scrapeStatus?.running
-
-  const handleScrapeComplete = useCallback(() => setScraping(false), [])
 
   const personGroups = (groups || [])
     .filter((g) => PERSON_GROUPS.includes(g.slug))
@@ -170,16 +135,6 @@ export default function InternalTikTok() {
   const sortedCreators = [...(creators || [])].sort(
     (a, b) => (b.total_views ?? 0) - (a.total_views ?? 0)
   )
-
-  function handleScrapeAll(startDate: string, endDate: string) {
-    setScraping(true)
-    triggerGroupScrape.mutate({ start_date: startDate, end_date: endDate })
-  }
-
-  function handleScrapeGroup(slug: string, startDate: string, endDate: string) {
-    setScraping(true)
-    triggerGroupScrape.mutate({ group: slug, start_date: startDate, end_date: endDate })
-  }
 
   function handleAddCreators(e: React.FormEvent) {
     e.preventDefault()
@@ -232,31 +187,22 @@ export default function InternalTikTok() {
         </div>
       </div>
 
-      {/* Scrape progress */}
-      <ScrapeProgress enabled={isRunning} onComplete={handleScrapeComplete} />
-
-      {/* Three scrape cards */}
+      {/* Three scrape cards — click to enter scrape view with date picker + results */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <ScrapeCard
           title="Internal Pages"
           count={internalCount}
-          onScrape={(s, e) => handleScrapeAll(s, e)}
-          isPending={triggerGroupScrape.isPending}
-          isRunning={isRunning}
+          linkTo="/internal/scrape/internal"
         />
         <ScrapeCard
           title="Warner Pages"
           count={warnerGroup?.member_count ?? 0}
-          onScrape={(s, e) => handleScrapeGroup("warner_pages", s, e)}
-          isPending={triggerGroupScrape.isPending}
-          isRunning={isRunning}
+          linkTo="/internal/scrape/warner"
         />
         <ScrapeCard
           title="Atlantic Pages"
           count={atlanticGroup?.member_count ?? 0}
-          onScrape={(s, e) => handleScrapeGroup("atlantic_pages", s, e)}
-          isPending={triggerGroupScrape.isPending}
-          isRunning={isRunning}
+          linkTo="/internal/scrape/atlantic"
         />
       </div>
 
