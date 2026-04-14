@@ -14,7 +14,7 @@ import { SongsResults } from "@/components/internal/SongsResults"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, RefreshCw } from "lucide-react"
-import type { InternalScrapeResults, InternalSongResult } from "@/lib/types"
+import type { InternalScrapeResults } from "@/lib/types"
 
 const CATEGORIES: Record<string, { title: string; groupSlugs: string[]; scrapeGroup?: string }> = {
   internal: {
@@ -70,20 +70,6 @@ export default function InternalScrapeView() {
     // Refetch results after scrape completes so links show up
     queryClient.invalidateQueries({ queryKey: keys.internalResults })
   }, [queryClient])
-
-  // Find all member usernames for this category's groups
-  const categoryMembers = useMemo(() => {
-    if (!groups) return new Set<string>()
-    const members = new Set<string>()
-    for (const g of groups) {
-      if (config.groupSlugs.includes(g.slug)) {
-        // We don't have member lists from the groups list endpoint,
-        // so we'll use the creators list and match against group membership
-        // For now, we'll fetch from the group detail endpoints
-      }
-    }
-    return members
-  }, [groups, config.groupSlugs])
 
   // Get account count from groups
   const accountCount = useMemo(() => {
