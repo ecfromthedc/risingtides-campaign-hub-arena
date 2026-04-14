@@ -43,9 +43,10 @@ RUN mkdir -p /app/data_volume/campaigns/active \
 # Expose port (Railway will override with PORT env var)
 EXPOSE 5055
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5055/health')"
+# Health check (generous start-period because the scheduler may trigger
+# a scrape on boot which makes the first response slow)
+HEALTHCHECK --interval=30s --timeout=30s --start-period=120s --retries=5 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-5055}/health')"
 
 # Run the Flask app with gunicorn (production WSGI server)
 # 4 workers, 120s timeout for long scraping operations, bind to PORT env var
