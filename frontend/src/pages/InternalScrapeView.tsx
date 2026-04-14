@@ -14,18 +14,26 @@ import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft } from "lucide-react"
 import type { InternalScrapeResults, InternalSongResult } from "@/lib/types"
 
-const CATEGORIES: Record<string, { title: string; groupSlugs: string[] }> = {
+const CATEGORIES: Record<string, { title: string; groupSlugs: string[]; scrapeGroup?: string }> = {
   internal: {
     title: "Internal Pages",
     groupSlugs: ["jake_balik", "john_smathers", "sam_hudgens", "eric_cromartie", "johnny_balik", "seeno_pages"],
+    // No scrapeGroup — scrapes all creators
   },
   warner: {
     title: "Warner Pages",
     groupSlugs: ["warner_pages"],
+    scrapeGroup: "warner_pages",
   },
   atlantic: {
     title: "Atlantic Pages",
     groupSlugs: ["atlantic_pages"],
+    scrapeGroup: "atlantic_pages",
+  },
+  warner_test: {
+    title: "Warner Test Pages",
+    groupSlugs: ["warner_test_pages"],
+    scrapeGroup: "warner_test_pages",
   },
 }
 
@@ -92,14 +100,11 @@ export default function InternalScrapeView() {
 
   function handleScrape() {
     setScraping(true)
-    if (category === "internal") {
-      // Scrape all accounts
-      scrape.mutate({ start_date: startDate, end_date: endDate })
-    } else if (category === "warner") {
-      scrape.mutate({ group: "warner_pages", start_date: startDate, end_date: endDate })
-    } else if (category === "atlantic") {
-      scrape.mutate({ group: "atlantic_pages", start_date: startDate, end_date: endDate })
+    const params: Record<string, string> = { start_date: startDate, end_date: endDate }
+    if (config.scrapeGroup) {
+      params.group = config.scrapeGroup
     }
+    scrape.mutate(params)
   }
 
   return (

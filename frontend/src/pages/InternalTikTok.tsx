@@ -13,7 +13,7 @@ import { Loader2, ChevronRight, X, Plus, Trash2 } from "lucide-react"
 import type { InternalGroup } from "@/lib/types"
 
 const PERSON_GROUPS = ["jake_balik", "john_smathers", "sam_hudgens", "eric_cromartie", "johnny_balik", "seeno_pages"]
-const LABEL_GROUPS = ["warner_pages", "atlantic_pages"]
+const LABEL_GROUPS = ["warner_pages", "atlantic_pages", "warner_test_pages"]
 
 function formatNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -131,6 +131,7 @@ export default function InternalTikTok() {
   const internalCount = personGroups.reduce((sum, g) => sum + g.member_count, 0)
   const warnerGroup = (groups || []).find((g) => g.slug === "warner_pages")
   const atlanticGroup = (groups || []).find((g) => g.slug === "atlantic_pages")
+  const warnerTestGroup = (groups || []).find((g) => g.slug === "warner_test_pages")
 
   const sortedCreators = [...(creators || [])].sort(
     (a, b) => (b.total_views ?? 0) - (a.total_views ?? 0)
@@ -187,8 +188,8 @@ export default function InternalTikTok() {
         </div>
       </div>
 
-      {/* Three scrape cards — click to enter scrape view with date picker + results */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Scrape cards — click to enter scrape view with date picker + results */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <ScrapeCard
           title="Internal Pages"
           count={internalCount}
@@ -203,6 +204,11 @@ export default function InternalTikTok() {
           title="Atlantic Pages"
           count={atlanticGroup?.member_count ?? 0}
           linkTo="/internal/scrape/atlantic"
+        />
+        <ScrapeCard
+          title="Warner Test Pages"
+          count={warnerTestGroup?.member_count ?? 0}
+          linkTo="/internal/scrape/warner_test"
         />
       </div>
 
