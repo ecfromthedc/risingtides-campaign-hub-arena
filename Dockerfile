@@ -1,6 +1,7 @@
 # ---- Stage 1: Build frontend ----
 FROM node:20-slim AS frontend-build
 WORKDIR /build
+# Cache bust: 2026-04-14-v2
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
