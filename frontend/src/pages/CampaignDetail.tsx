@@ -15,6 +15,7 @@ import {
 import { CampaignHeader } from "@/components/campaigns/CampaignHeader"
 import { StatCards } from "@/components/campaigns/StatCards"
 import { CobrandStatsCard, CobrandLinkInput, CobrandUploadSection } from "@/components/campaigns/CobrandSection"
+import { ShareTokenSection } from "@/components/campaigns/ShareTokenSection"
 import { AddCreatorForm } from "@/components/campaigns/AddCreatorForm"
 import { CreatorsTable } from "@/components/campaigns/CreatorsTable"
 import { ChevronRight, Loader2 } from "lucide-react"
@@ -138,6 +139,9 @@ export default function CampaignDetail() {
           error={cobrandStats.error as Error | null}
         />
       )}
+
+      {/* Share with Client */}
+      <ShareTokenSection slug={slug!} />
 
       {/* Add Creator Form */}
       <AddCreatorForm
