@@ -219,11 +219,138 @@ def slingshots():
     ))
 
 
+# Fleet tier ladder — the "basketball" team-wins mechanic.
+# Thresholds are cumulative fleet impressions (sum of all operator views).
+# When the fleet crosses THE CREST, it's the morale victory / championship.
+FLEET_TIERS = [
+    {"key": "harbor",   "name": "Harbor",         "threshold": 0,            "color": "#6B8E7F", "blurb": "All hands on deck. The fleet assembles."},
+    {"key": "bronze",   "name": "Bronze Fleet",   "threshold": 100_000_000,  "color": "#CD7F32", "blurb": "First hundred million. The ships are moving."},
+    {"key": "silver",   "name": "Silver Fleet",   "threshold": 250_000_000,  "color": "#C0C0C0", "blurb": "Quarter billion. The tides are rising."},
+    {"key": "gold",     "name": "Gold Fleet",     "threshold": 500_000_000,  "color": "#D4A843", "blurb": "Half a billion. Flagship energy."},
+    {"key": "obsidian", "name": "Obsidian Fleet", "threshold": 1_000_000_000,"color": "#4C1D95", "blurb": "One billion fleet impressions. Rarefied air."},
+    {"key": "crest",    "name": "The Crest",      "threshold": 2_000_000_000,"color": "#E100C3", "blurb": "Morale victory unlocked. The whole fleet rises together."},
+]
+
+
+def _fleet_tier(total_impressions: int) -> dict:
+    """Compute current tier + progress toward the next."""
+    current = FLEET_TIERS[0]
+    nxt = None
+    for i, tier in enumerate(FLEET_TIERS):
+        if total_impressions >= tier["threshold"]:
+            current = tier
+            nxt = FLEET_TIERS[i + 1] if i + 1 < len(FLEET_TIERS) else None
+        else:
+            break
+    if nxt is None:
+        return {
+            "current": current,
+            "next": None,
+            "progress_pct": 100.0,
+            "impressions_to_next": 0,
+            "max_tier_reached": True,
+        }
+    span = nxt["threshold"] - current["threshold"]
+    progressed = total_impressions - current["threshold"]
+    pct = max(0.0, min(100.0, (progressed / span) * 100.0)) if span > 0 else 0.0
+    return {
+        "current": current,
+        "next": nxt,
+        "progress_pct": round(pct, 2),
+        "impressions_to_next": max(0, nxt["threshold"] - total_impressions),
+        "max_tier_reached": False,
+    }
+
+
 @app.get("/api/league")
 def league():
     latest_week = one("SELECT MAX(week_start) AS w FROM captain_leagues")
+
+    # Fleet-wide stats — the "team wins" scoreboard.
+    # Week boundaries defined in Python to avoid timezone drift on the DB.
+    today = date.today()
+    this_week_start = today - timedelta(days=today.weekday())  # Monday
+    last_week_start = this_week_start - timedelta(days=7)
+
+    fleet_totals = one(
+        """
+        SELECT
+          COALESCE(SUM(views), 0)::bigint AS impressions_total,
+          COALESCE(SUM(xp), 0)::bigint    AS xp_total,
+          COUNT(*)::int                   AS post_count,
+          COUNT(DISTINCT operator_slug)::int AS active_operators
+        FROM xp_events
+        """
+    ) or {}
+
+    impressions_this_week = one(
+        """
+        SELECT COALESCE(SUM(views), 0)::bigint AS v
+        FROM xp_events
+        WHERE event_at >= %s
+        """,
+        (this_week_start,),
+    ) or {"v": 0}
+
+    impressions_last_week = one(
+        """
+        SELECT COALESCE(SUM(views), 0)::bigint AS v
+        FROM xp_events
+        WHERE event_at >= %s AND event_at < %s
+        """,
+        (last_week_start, this_week_start),
+    ) or {"v": 0}
+
+    xp_this_week = one(
+        """
+        SELECT COALESCE(SUM(xp), 0)::bigint AS v
+        FROM xp_events
+        WHERE event_at >= %s
+        """,
+        (this_week_start,),
+    ) or {"v": 0}
+
+    tw = int(impressions_this_week["v"])
+    lw = int(impressions_last_week["v"])
+    delta_pct: float | None = None
+    if lw > 0:
+        delta_pct = round(((tw - lw) / lw) * 100.0, 1)
+
+    total_imp = int(fleet_totals.get("impressions_total") or 0)
+    tier_info = _fleet_tier(total_imp)
+
+    # Per-operator impression contribution (for the "everyone matters" box score)
+    op_contribs = rows(
+        """
+        SELECT o.slug, o.display_name, o.color, o.tagline,
+               COALESCE(SUM(e.views), 0)::bigint AS impressions,
+               COALESCE(SUM(e.xp), 0)::bigint    AS xp,
+               COUNT(e.id)::int                  AS posts
+        FROM operators o
+        LEFT JOIN xp_events e ON e.operator_slug = o.slug
+        GROUP BY o.slug, o.display_name, o.color, o.tagline
+        ORDER BY impressions DESC
+        """
+    )
+
+    fleet = {
+        "impressions_total": total_imp,
+        "impressions_this_week": tw,
+        "impressions_last_week": lw,
+        "impressions_week_delta_pct": delta_pct,
+        "xp_total": int(fleet_totals.get("xp_total") or 0),
+        "xp_this_week": int(xp_this_week["v"]),
+        "post_count": int(fleet_totals.get("post_count") or 0),
+        "active_operators": int(fleet_totals.get("active_operators") or 0),
+        "tier": tier_info,
+        "tiers": FLEET_TIERS,
+        "contributions": op_contribs,
+        "week_start": this_week_start,
+    }
+
     if not latest_week or not latest_week["w"]:
-        return {"week_start": None, "standings": []}
+        return _ser({"week_start": None, "standings": [], "fleet": fleet})
+
     standings = rows(
         """
         SELECT cl.operator_slug, cl.league, cl.xp, cl.rank_in_league,
@@ -235,7 +362,7 @@ def league():
         """,
         (latest_week["w"],),
     )
-    return _ser({"week_start": latest_week["w"], "standings": standings})
+    return _ser({"week_start": latest_week["w"], "standings": standings, "fleet": fleet})
 
 
 @app.get("/api/events")
